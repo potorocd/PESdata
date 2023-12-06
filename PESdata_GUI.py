@@ -88,7 +88,8 @@ def scan_dir(file_dir):
     '''
     dir_dict = {}
     count_dict = {}
-    for k in ['.ibw', '.txt', '.h5', '.mat', '.4q', '.1q', '.hextof', '.sxp']:
+    for k in ['.ibw', '.txt', '.h5', '.mat', '.4q', '.1q', '.hextof',
+              '.sxp', '.parquet']:
         dir_dump = []
         counter = 0
         for i in os.walk(file_dir):
@@ -104,7 +105,7 @@ def scan_dir(file_dir):
         file_type = 'WESPE'
     elif len(dir_dict['.1q']) > 0:
         file_type = 'WESPE'
-    elif len(dir_dict['.hextof']) > 0 or len(dir_dict['.sxp']) > 0:
+    elif len(dir_dict['.hextof']) > 0 or len(dir_dict['.sxp']) > 0 or len(dir_dict['.parquet']) > 0:
         file_type = 'MM'
     else:
         if len(dir_dict['.h5']) > 0:

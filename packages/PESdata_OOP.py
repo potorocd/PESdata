@@ -1582,7 +1582,7 @@ class create_batch_MM(create_batch_WESPE):
         except:
             self.batch_dir, self.batch_list = [], []
             for run_number in run_list:
-                for ext in ['.HEXTOF', '.SXP']:
+                for ext in ['.HEXTOF', '.SXP', '.parquet']:
                     file_full = file_dir + os.sep + f'{run_number}' + ext
                     if os.path.isfile(file_full+ext) is False and os.path.isfile(file_full+f's{ext}'):
                         file_name = f'{run_number}' + os.sep + f'{run_number}'
@@ -1751,7 +1751,7 @@ class read_file_MM(create_batch_WESPE):
         else:
             self.is_static = False
 
-        f = read_parquet(self.file_full, engine='fastparquet')
+        f = read_parquet(self.file_full, engine='fastparquet').dropna()
         self.file_folder = self.file_full.split(os.sep)[:-1]
         self.file_folder = f'{os.sep}'.join(self.file_folder)
 
@@ -1760,8 +1760,11 @@ class read_file_MM(create_batch_WESPE):
         except:
             self.static = int(self.run_num.split('_')[-1])
         self.DLD = DLD
-
-        self.DLD_energy = f['dldTime'].values/1000
+        
+        try:
+            self.DLD_energy = f['dldTime'].values/1000
+        except:
+            self.DLD_energy = f['dldTimeSteps'].values/1000
         try:
             self.x = f['x']/1000
             self.y = f['y']/1000
@@ -4069,8 +4072,8 @@ class map_cut:
 
         # create parameters with initial values
         params = model.make_params(amplitude=amplitude_g, center=center_g,
-                                   sigma=abs(axis_step)*2,
-                                   gamma=abs(axis_step)*2, c=c_g)
+                                   sigma=abs(axis_step),
+                                   gamma=abs(axis_step), c=c_g)
 
         # maybe place bounds on some parameters
         params['center'].min = np.min(x)
@@ -4764,9 +4767,9 @@ if __name__ == "__main__":
                         object_hook=lambda d: SimpleNamespace(**d))
 
     file_dir = r'D:\Data\HEXTOF'
-    file_dir = r'D:\Data\SXP'
-    run_numbers = [44824]
-    run_numbers= ['p005639_00016_2']
+    # file_dir = r'D:\Data\SXP'
+    run_numbers = ['run_49948']
+    # run_numbers= ['p005639_00016_2']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
         i.create_map(ordinate='td', energy_step=0.01, delay_step=1, save='off') 
