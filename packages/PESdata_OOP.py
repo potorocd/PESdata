@@ -21,6 +21,7 @@ from time import gmtime
 from datetime import datetime, timedelta
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MultipleLocator
+from matplotlib.widgets import Slider
 import matplotlib
 from scipy.signal import savgol_filter
 import xarray as xr
@@ -622,7 +623,7 @@ class create_batch_WESPE:
             np.savetxt(file_full, out, delimiter='    ')
             print(f"Saved as {file_full}")
 
-    def axs_plot(self, axs):
+    def axs_plot(self, axs, mode='3D'):
         # Loading configs from json file.
         try:
             with open('config.json', 'r') as json_file:
@@ -653,6 +654,10 @@ class create_batch_WESPE:
                 axs.axis('off')
         else:
             image_data = self.Map_2D_plot.values
+            if image_data.ndim == 3:
+                switch_3D = True
+            else:
+                switch_3D = False
             image_data_y = self.Map_2D_plot.coords['Dim_y'].values
             image_data_x = self.Map_2D_plot.coords['Dim_x'].values
             order_x = 'x_order_rec'
@@ -757,38 +762,129 @@ class create_batch_WESPE:
             extent = [x_start, x_end,
                       y_start, y_end]
 
-            vmin = np.min(image_data)
-            vmax = np.max(image_data)*config.map_scale
-            self.map_z_tick = self.map_z_tick*config.map_scale
-            if vmin < 0:
-                vmin = vmin*config.map_scale
-
             TwoSlopeNorm = config.TwoSlopeNorm
             if config.interpolation == 'on':
                 interpolation = 'gaussian'
             else:
                 interpolation = None
-            if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
-                im1 = axs.imshow(image_data, origin='upper',
-                                 interpolation=interpolation,
-                                 extent=extent,
-                                 cmap=config.cmap, aspect='auto',
-                                 norm=colors.TwoSlopeNorm(vmin=vmin,
-                                                          vcenter=TwoSlopeNorm*vmax,
-                                                          vmax=vmax))
-            else:
-                im1 = axs.imshow(image_data, origin='upper',
-                                 interpolation=interpolation,
-                                 extent=extent,
-                                 vmin=vmin,
-                                 vmax=vmax,
-                                 cmap=config.cmap, aspect='auto')
+            # if image_data.ndim == 3:
+            #     i_max = np.sum(image_data,axis=(0,1)).argmax()
+            #     image_data = image_data[:,:,i_max]
+                
+            if switch_3D is False:
+                vmin = np.min(image_data)
+                vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                self.map_z_tick = self.map_z_tick*config.map_scale
+                if vmin < 0:
+                    vmin = vmin*config.map_scale
 
-            divider1 = make_axes_locatable(axs)
-            cax1 = divider1.append_axes("right", size="3.5%", pad=0.09)
-            cbar = plt.colorbar(im1, cax=cax1,
-                                ticks=MultipleLocator(self.map_z_tick))
-            cbar.minorticks_on()
+                if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                    im1 = axs.imshow(image_data, origin='upper',
+                                     interpolation=interpolation,
+                                     extent=extent,
+                                     cmap=config.cmap, aspect='auto',
+                                     norm=colors.TwoSlopeNorm(vmin=vmin,
+                                                              vcenter=TwoSlopeNorm*vmax,
+                                                              vmax=vmax))
+                else:
+                    im1 = axs.imshow(image_data, origin='upper',
+                                     interpolation=interpolation,
+                                     extent=extent,
+                                     vmin=vmin,
+                                     vmax=vmax,
+                                     cmap=config.cmap, aspect='auto')
+                cbar_pad = 0.09
+            else:
+                self.Map_3D = self.Map_2D_plot
+                cbar_pad = '2%'
+                I_curve = np.sum(self.Map_3D, axis=(0, 1))
+                length = I_curve.shape[0]
+                i_max = I_curve.argmax()
+                if i_max < length*0.05 or i_max > length*0.95:
+                    i_max = int(length*0.5)
+                self.image_data_z = self.Map_2D_plot.coords['Dim_z'].values
+                valinit = self.image_data_z[i_max]
+                val_min = self.image_data_z.min()
+                val_max = self.image_data_z.max()
+                self.Map_2D_plot = self.Map_3D[:, :, i_max]
+                image_data = self.Map_2D_plot.values
+                
+                print(np.max(image_data), np.mean(image_data), np.median(image_data))
+
+                vmin = np.min(image_data)
+                vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                self.map_z_tick = self.map_z_tick*config.map_scale
+                if vmin < 0:
+                    vmin = vmin*config.map_scale
+
+                if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                    im1 = axs.imshow(image_data, origin='upper',
+                                     interpolation=interpolation,
+                                     extent=extent,
+                                     cmap=config.cmap, aspect='auto',
+                                     norm=colors.TwoSlopeNorm(vmin=vmin,
+                                                              vcenter=TwoSlopeNorm*vmax,
+                                                              vmax=vmax))
+                else:
+                    im1 = axs.imshow(image_data, origin='upper',
+                                     interpolation=interpolation,
+                                     extent=extent,
+                                     vmin=vmin,
+                                     vmax=vmax,
+                                     cmap=config.cmap, aspect='auto')
+                # plt.ion()
+                divider = make_axes_locatable(axs)
+                cax2 = divider.append_axes("right", size="5%", pad='5%')
+                self.t_slider = Slider(ax=cax2,
+                                       label='z',
+                                       track_color='dimgrey',
+                                       valmin=val_min,
+                                       valmax=val_max,
+                                       valinit=valinit,
+                                       orientation="vertical",
+                                       valstep=self.image_data_z,
+                                       handle_style={'facecolor': 'white',
+                                                     'edgecolor': '.9',
+                                                     'size': '20'
+                                                    }
+                                       )
+
+                def update(val):
+                    pos = self.t_slider.val
+                    self.Map_2D_plot = self.Map_3D[:,:,np.where(self.image_data_z==pos)[0][0]]
+                    image_data = self.Map_2D_plot.values
+                    vmin = np.min(image_data)
+                    vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                    im1.set_data(image_data)
+
+                    self.map_z_tick = (vmax - vmin)/config.map_n_ticks_z
+                    if self.map_z_tick < 1:
+                        self.map_z_tick_decimal = 1
+                    else:
+                        self.map_z_tick_decimal = 0
+                    self.map_z_tick = round(self.map_z_tick, self.map_z_tick_decimal)
+                    if self.map_z_tick == 0:
+                        self.map_z_tick = 1
+
+                    if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                        im1.set_clim(vmin=vmin, vmax=vmax,
+                                     vcenter=TwoSlopeNorm*vmax)
+                    else:
+                        im1.set_clim(vmin=vmin, vmax=vmax)
+                    self.cbar.set_ticks(MultipleLocator(self.map_z_tick))
+                    # plt.gcf().canvas.draw_idle()
+                    # plt.gcf().canvas.draw()
+                    # plt.gcf().canvas.flush_events()
+                    return self.t_slider
+
+                self.t_slider.on_changed(update)
+
+            if switch_3D is False:
+                divider = make_axes_locatable(axs)
+            cax1 = divider.append_axes("right", size="3.5%", pad=cbar_pad)
+            self.cbar = plt.colorbar(im1, cax=cax1,
+                                     ticks=MultipleLocator(self.map_z_tick))
+            self.cbar.minorticks_on()
             if self.Map_2D_plot.attrs['Normalized'] is True:
                 cax1.set_ylabel('Intensity (arb. units)', rotation=270,
                                 labelpad=30,
@@ -870,12 +966,13 @@ class create_batch_WESPE:
             axs.tick_params(axis='both', which='minor',
                             length=config.map_tick_length/1.5,
                             width=config.map_tick_length/4)
-            cax1.tick_params(axis='both', which='major',
-                             length=config.map_tick_length,
-                             width=config.map_tick_length/4)
-            cax1.tick_params(axis='both', which='minor',
-                             length=config.map_tick_length/1.5,
-                             width=config.map_tick_length/4)
+            if switch_3D is False:
+                cax1.tick_params(axis='both', which='major',
+                                 length=config.map_tick_length,
+                                 width=config.map_tick_length/4)
+                cax1.tick_params(axis='both', which='minor',
+                                 length=config.map_tick_length/1.5,
+                                 width=config.map_tick_length/4)
             if self.map_y_min == self.map_y_max:
                 axs.set_ylim(self.map_y_min-1, self.map_y_max+1)
             if self.map_x_min == self.map_x_max:
@@ -1949,6 +2046,10 @@ class read_file_MM(create_batch_WESPE):
         save_path = save_path + f"_{self.Macro_B_filter}"
         save_path = save_path + f"_{self.Micro_B_filter}.nc"
         try:
+            if len(ordinate) > 2:
+                self.switch_3D = True
+            else:
+                self.switch_3D = False
             # if self.ordinate != 'delay':
             #     raise FileNotFoundError
 
@@ -1963,15 +2064,23 @@ class read_file_MM(create_batch_WESPE):
                     data_name = i
 
             x_label = unit_dict[ordinate[0]][0]
-            y_label = unit_dict[ordinate[-1]][0]
-            y_units = unit_dict[ordinate[-1]][2]
+            y_label = unit_dict[ordinate[1]][0]
+            y_units = unit_dict[ordinate[1]][2]
             x_units = unit_dict[ordinate[0]][2]
             x_label_a = unit_dict[ordinate[0]][1]
-            y_label_a = unit_dict[ordinate[-1]][1]
+            y_label_a = unit_dict[ordinate[1]][1]
             x_units_a = unit_dict[ordinate[0]][2]
-            y_units_a = unit_dict[ordinate[-1]][2]
+            y_units_a = unit_dict[ordinate[1]][2]
             x_order_rec = False
             y_order_rec = False
+
+            if self.switch_3D is True:
+                z_label = unit_dict[ordinate[2]][0]
+                z_units = unit_dict[ordinate[2]][2]
+                z_label_a = unit_dict[ordinate[2]][1]
+                z_units_a = unit_dict[ordinate[2]][2]
+                z_order_rec = False
+                image_data_z = loaded_map.variables[z_label].values
 
             try:
                 if loaded_map.variables[data_name].attrs['DLD'] != self.DLD:
@@ -1983,11 +2092,23 @@ class read_file_MM(create_batch_WESPE):
             image_data_y = loaded_map.variables[y_label].values
             image_data_x = loaded_map.variables[x_label].values
 
-            coords = {y_label: ('Dim_y', image_data_y),
-                      x_label: ('Dim_x', image_data_x)}
-            Map_2D = xr.DataArray(np.array(image_data),
-                                  dims=['Dim_y', 'Dim_x'],
-                                  coords=coords)
+            if self.switch_3D is False:
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y)}
+
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x"],
+                                      coords=coords)
+            else:
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y),
+                          z_label: ("Dim_z", image_data_z)}
+
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x", "Dim_z"],
+                                      coords=coords)
+                Map_2D.coords["Dim_z"] = Map_2D.coords[z_label]
+
             Map_2D.name = data_name
             BE = loaded_map.variables[x_label_a].values
             Map_2D.coords[x_label_a] = ('Dim_x', BE)
@@ -1995,21 +2116,46 @@ class read_file_MM(create_batch_WESPE):
             Map_2D.coords['Dim_x'] = Map_2D.coords[x_label]
             Map_2D.coords['Dim_y'] = Map_2D.coords[y_label]
 
-            Map_2D.attrs = {'x_label': x_label,
-                            'x_units': x_units,
-                            'x_order_rec': x_order_rec,
-                            'y_label': y_label,
-                            'y_units': y_units,
-                            'y_order_rec': y_order_rec,
-                            'x_label_a': x_label_a,
-                            'x_units_a': x_units_a,
-                            'x_order_rec_a': not x_order_rec,
-                            'y_label_a': y_label_a,
-                            'y_units_a': y_units_a,
-                            'y_order_rec_a': not y_order_rec,
-                            'x_alt': False,
-                            'y_alt': False,
-                            'Normalized': False}
+            if self.switch_3D is False:
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False}
+            else:
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False,
+                                'DLD': self.DLD,
+                                'z_label': z_label,
+                                'z_units': z_units,
+                                'z_order_rec': z_order_rec,
+                                'z_label_a': z_label_a,
+                                'z_units_a': z_units_a,
+                                'z_order_rec_a': not z_order_rec,
+                                'z_alt': False}
 
             self.Map_2D = Map_2D
             self.Map_2D_plot = self.Map_2D
@@ -2025,6 +2171,12 @@ class read_file_MM(create_batch_WESPE):
                                         return bincounts(Hist2D((x_a,y_a), (x,y)))
                                     end
                                     ''')
+                make_hist_3D = jl.eval('''
+                                        using FHist
+                                        function make_hist(x,y,z,x_a,y_a,z_a)
+                                            return bincounts(Hist3D((x_a,y_a,z_a), (x,y,z)))
+                                        end
+                                        ''')
                 rounding_jl = jl.eval('''
                                       function rounding_jl(x,y)
                                             return floor.(x./y).*y .+ ((x./y .- floor.(x./y)) .>= 0.5).*y
@@ -2075,7 +2227,12 @@ class read_file_MM(create_batch_WESPE):
             '''
 
             DLD_energy = getattr(self, unit_dict[ordinate[0]][3])
-            parameter = getattr(self, unit_dict[ordinate[-1]][3])
+            parameter = getattr(self, unit_dict[ordinate[1]][3])
+            try:
+                z_parameter = getattr(self, unit_dict[ordinate[2]][3])
+                self.switch_3D = True
+            except:
+                self.switch_3D = False
 
             if use_julia is True:
                 DLD_delay_r = np.array(rounding_jl(parameter, delay_step))
@@ -2099,6 +2256,15 @@ class read_file_MM(create_batch_WESPE):
             image_data_y = np.around(image_data_y,
                                      self.decimal_n(delay_step))
 
+            if self.switch_3D is True:
+                z_step = (z_parameter.max()-z_parameter.min())/100
+                z_step = np.around(z_step, 3)
+                image_data_z = np.arange(z_parameter.min(),
+                                         z_parameter.max()+z_step,
+                                         z_step)
+                image_data_z = np.around(image_data_z,
+                                         self.decimal_n(z_step))
+
             if use_julia is True:
                 yedges = np.append(image_data_y,
                                    image_data_y[-1]+delay_step)
@@ -2106,9 +2272,21 @@ class read_file_MM(create_batch_WESPE):
                 xedges = np.append(image_data_x,
                                    image_data_x[-1]+energy_step)
                 xedges = xedges-0.5*energy_step
-                image_data = make_hist(xedges, yedges,
-                                       DLD_energy_r, DLD_delay_r)
-                image_data = np.array(image_data).T
+                if self.switch_3D is False:
+                    image_data = make_hist(xedges, yedges,
+                                           DLD_energy_r, DLD_delay_r)
+                    image_data = np.array(image_data).T
+                else:
+                    zedges = np.append(image_data_z,
+                                       image_data_z[-1]+z_step)
+                    zedges = zedges-0.5*z_step
+                    image_data = make_hist_3D(xedges, yedges, zedges,
+                                                 DLD_energy_r, DLD_delay_r,
+                                                 z_parameter)
+                    image_data = np.array(image_data).transpose(1,0,2)
+                    # for i in range(image_data.shape[2]):
+                    #     plt.imshow(image_data[:,:,i])
+                    #     plt.show()
             else:
                 image_data = []
                 for i in image_data_y:
@@ -2121,13 +2299,13 @@ class read_file_MM(create_batch_WESPE):
                     image_data.append(line)
 
             x_label = unit_dict[ordinate[0]][0]
-            y_label = unit_dict[ordinate[-1]][0]
-            y_units = unit_dict[ordinate[-1]][2]
+            y_label = unit_dict[ordinate[1]][0]
+            y_units = unit_dict[ordinate[1]][2]
             x_units = unit_dict[ordinate[0]][2]
             x_label_a = unit_dict[ordinate[0]][1]
-            y_label_a = unit_dict[ordinate[-1]][1]
+            y_label_a = unit_dict[ordinate[1]][1]
             x_units_a = unit_dict[ordinate[0]][2]
-            y_units_a = unit_dict[ordinate[-1]][2]
+            y_units_a = unit_dict[ordinate[1]][2]
             x_order_rec = False
             y_order_rec = False
 
@@ -2157,13 +2335,29 @@ class read_file_MM(create_batch_WESPE):
             # BE = self.mono_mean - np.array(image_data_x) - 4.5
             # BE = np.around(self.rounding(BE, energy_step), self.decimal_n(energy_step))
             # image_data_x_a = BE
+            
+            if self.switch_3D is False:
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y)}
+    
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x"],
+                                      coords=coords)
+            else:
+                z_label = unit_dict[ordinate[2]][0]
+                z_units = unit_dict[ordinate[2]][2]
+                z_label_a = unit_dict[ordinate[2]][1] 
+                z_units_a = unit_dict[ordinate[2]][2]
+                z_order_rec = False
 
-            coords = {x_label: ("Dim_x", image_data_x),
-                      y_label: ("Dim_y", image_data_y)}
-
-            Map_2D = xr.DataArray(np.array(image_data),
-                                  dims=["Dim_y", "Dim_x"],
-                                  coords=coords)
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y),
+                          z_label: ("Dim_z", image_data_z)}
+    
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x","Dim_z"],
+                                      coords=coords)
+                Map_2D.coords["Dim_z"] = Map_2D.coords[z_label]
 
             Map_2D.coords["Dim_y"] = Map_2D.coords[y_label]
             Map_2D.coords["Dim_x"] = Map_2D.coords[x_label]
@@ -2176,22 +2370,47 @@ class read_file_MM(create_batch_WESPE):
                 Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
             except:
                 pass
-            Map_2D.attrs = {'x_label': x_label,
-                            'x_units': x_units,
-                            'x_order_rec': x_order_rec,
-                            'y_label': y_label,
-                            'y_units': y_units,
-                            'y_order_rec': y_order_rec,
-                            'x_label_a': x_label_a,
-                            'x_units_a': x_units_a,
-                            'x_order_rec_a': not x_order_rec,
-                            'y_label_a': y_label_a,
-                            'y_units_a': y_units_a,
-                            'y_order_rec_a': not y_order_rec,
-                            'x_alt': False,
-                            'y_alt': False,
-                            'Normalized': False,
-                            'DLD': self.DLD}
+            if self.switch_3D is False:
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False,
+                                'DLD': self.DLD}
+            else:
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False,
+                                'DLD': self.DLD,
+                                'z_label': z_label,
+                                'z_units': z_units,
+                                'z_order_rec': z_order_rec,
+                                'z_label_a': z_label_a,
+                                'z_units_a': z_units_a,
+                                'z_order_rec_a': not z_order_rec,
+                                'z_alt': False}
             Map_2D.name = 'Run ' + str(self.run_num)
             self.Map_2D = Map_2D
             self.Map_2D_plot = Map_2D
@@ -4768,15 +4987,16 @@ if __name__ == "__main__":
 
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
-    run_numbers = ['run_49948']
+    run_numbers = ['run_50032_50033_50041']
     # run_numbers= ['p005639_00016_2']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
-        i.create_map(ordinate='td', energy_step=0.01, delay_step=1, save='off') 
+        i.create_map(ordinate='xy', energy_step=0.001, delay_step=0.001, save='on') 
     b.create_map()
-    b.norm_total_e()
-    b.set_BE()
-    #b.ROI([25000,40000], axis='Dim_x', mod_map=True)
+    #b.norm_total_e()
+    # b.set_BE()
+    # b.ROI([0.4,0.85], axis='Dim_x', mod_map=True)
+    # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
     plot_files([b])
 else:
     # Loading configs from json file.
