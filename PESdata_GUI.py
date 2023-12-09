@@ -415,6 +415,31 @@ class MainApp(App):
                         size_hint=(0.075, 1),
                         halign='center'
                         )
+        # Z step label
+        self.e8 = Label(text='Dim Z step',
+                        font_size=config.kivy_font_size_title,
+                        color=config.kivy_color_white,
+                        font_name=config.kivy_font,
+                        pos_hint={"center_x": 0.5, "center_y": 0.5},
+                        size_hint=(0.275, 1),
+                        halign='center'
+                        )
+        # Z step input
+        self.e9 = TextInput(text='0.1',
+                            multiline=False,
+                            pos_hint={"center_x": 0.5, "center_y": 0.5},
+                            size_hint=(0.15, 0.7),
+                            font_name=config.kivy_font,
+                            font_size=config.kivy_font_size
+                            )
+        self.e10 = Label(text='a.u.',
+                         font_size=config.kivy_font_size_title,
+                         color=config.kivy_color_white,
+                         font_name=config.kivy_font,
+                         pos_hint={"center_x": 0.5, "center_y": 0.5},
+                         size_hint=(0.075, 1),
+                         halign='center'
+                         )
 
         # add widgets to the line
         self.box5.add_widget(self.e1)
@@ -424,6 +449,16 @@ class MainApp(App):
         self.box5.add_widget(self.e5)
         self.box5.add_widget(self.e6)
         self.box5.add_widget(self.e7)
+        if config.file_type == 'MM':
+            self.box5.add_widget(self.e8)
+            self.box5.add_widget(self.e9)
+            self.box5.add_widget(self.e10)
+            for i in [2, 5, 8]:
+                getattr(self, f'e{i}').size_hint = (0.1833, 1)
+            for i in [3, 6, 9]:
+                getattr(self, f'e{i}').size_hint = (0.1, 0.7)
+            for i in [4, 7, 10]:
+                getattr(self, f'e{i}').size_hint = (0.05, 1)
         '''
         BUNCH FILTERING
         '''
@@ -696,8 +731,12 @@ class MainApp(App):
                     halign='center'
                     )
         # Total electrons norm
+        if config.file_type in ['MM']:
+            t_e_n_state = 'normal'
+        else:
+            t_e_n_state = 'down'
         self.j2 = ToggleButton(text='Total electrons: ON',
-                               state='down',
+                               state=t_e_n_state,
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
@@ -1326,6 +1365,17 @@ class MainApp(App):
                         self.box2.add_widget(self.run_numbers_label)
                         self.run_numbers_input.size_hint = (1, 0.8)
                         self.box2.add_widget(self.run_numbers_input)
+                        
+                        self.box5.clear_widgets()
+                        self.e1.size_hint = (0.5, 1)
+                        for i in [2, 5]:
+                            getattr(self, f'e{i}').size_hint = (0.275, 1)
+                        for i in [3, 6]:
+                            getattr(self, f'e{i}').size_hint = (0.15, 0.7)
+                        for i in [4, 7]:
+                            getattr(self, f'e{i}').size_hint = (0.075, 1)
+                        for i in range(1,8):
+                            self.box5.add_widget(getattr(self, f'e{i}'))
 
                         self.box7.clear_widgets()
                         self.box7.add_widget(self.create_map)
@@ -1379,6 +1429,17 @@ class MainApp(App):
                         self.box2.add_widget(self.run_numbers_label)
                         self.run_numbers_input.size_hint = (1, 0.8)
                         self.box2.add_widget(self.run_numbers_input)
+                        
+                        self.box5.clear_widgets()
+                        self.e1.size_hint = (0.5, 1)
+                        for i in [2, 5, 8]:
+                            getattr(self, f'e{i}').size_hint = (0.1833, 1)
+                        for i in [3, 6, 9]:
+                            getattr(self, f'e{i}').size_hint = (0.1, 0.7)
+                        for i in [4, 7, 10]:
+                            getattr(self, f'e{i}').size_hint = (0.05, 1)
+                        for i in range(1, 11):
+                            self.box5.add_widget(getattr(self, f'e{i}'))
 
                         self.box7.clear_widgets()
                         self.box7.add_widget(self.create_map)
@@ -1435,6 +1496,17 @@ class MainApp(App):
                         self.run_numbers_input.size_hint = (0.8, 0.8)
                         self.box2.add_widget(self.run_numbers_input)
                         self.box2.add_widget(self.DLD_toggle)
+
+                        self.box5.clear_widgets()
+                        self.e1.size_hint = (0.5, 1)
+                        for i in [2, 5]:
+                            getattr(self, f'e{i}').size_hint = (0.275, 1)
+                        for i in [3, 6]:
+                            getattr(self, f'e{i}').size_hint = (0.15, 0.7)
+                        for i in [4, 7]:
+                            getattr(self, f'e{i}').size_hint = (0.075, 1)
+                        for i in range(1,8):
+                            self.box5.add_widget(getattr(self, f'e{i}'))
 
                         self.box7.clear_widgets()
                         self.box7.add_widget(self.create_map)
@@ -1533,9 +1605,18 @@ class MainApp(App):
 
             if self.f5.state == 'down':
                 for i in self.batch.batch_list:
-                    B_range = self.f6.text.split(',')
-                    B_range = [float(i) for i in B_range]
-                    i.Bunch_filter(B_range, B_type='MicroBunch')
+                    if config.file_type == 'MM':
+                        dims = self.f6.text.split(';')
+                        for j in dims:
+                            i_vals = j.split(',')
+                            B_type = i_vals[0]
+                            B_range = i_vals[1:]
+                            B_range = [float(k) for k in B_range]
+                            i.Bunch_filter(B_range, B_type=B_type)
+                    else:
+                        B_range = self.f6.text.split(',')
+                        B_range = [float(i) for i in B_range]
+                        i.Bunch_filter(B_range, B_type='MicroBunch')
 
             # Input for WESPE
             try:
@@ -1566,15 +1647,19 @@ class MainApp(App):
                 ordinate = self.hist_mode.text
 
             for i in self.batch.batch_list:
-                try:
+                if config.file_type == 'MM':
+                    z_step = float(self.e9.text)
+                    i.create_map(energy_step, delay_step, z_step,
+                                 ordinate=ordinate,
+                                 save=config.save_nc)
+                elif config.file_type == 'WESPE':
                     i.create_map(energy_step, delay_step, ordinate=ordinate,
                                  save=config.save_nc)
-                except:
-                    try:
-                        i.create_map(ordinate=ordinate, bunch_sel=bunch_sel,
-                                     DLD_t_res=DLD_t_res, save=config.save_nc)
-                    except:
-                        i.create_map()
+                elif config.file_type == 'ALS':
+                    i.create_map(ordinate=ordinate, bunch_sel=bunch_sel,
+                                 DLD_t_res=DLD_t_res, save=config.save_nc)
+                else:
+                    i.create_map()
                 if self.d5.state == 'down':
                     i.set_BE()
 
@@ -2827,6 +2912,17 @@ class MainApp(App):
             self.run_numbers_input.size_hint = (0.8, 0.8)
             self.box2.add_widget(self.run_numbers_input)
             self.box2.add_widget(self.DLD_toggle)
+            
+            self.box5.clear_widgets()
+            self.e1.size_hint = (0.5, 1)
+            for i in [2, 5]:
+                getattr(self, f'e{i}').size_hint = (0.275, 1)
+            for i in [3, 6]:
+                getattr(self, f'e{i}').size_hint = (0.15, 0.7)
+            for i in [4, 7]:
+                getattr(self, f'e{i}').size_hint = (0.075, 1)
+            for i in range(1,8):
+                self.box5.add_widget(getattr(self, f'e{i}'))
 
             self.box7.clear_widgets()
             self.box7.add_widget(self.create_map)
@@ -2841,6 +2937,17 @@ class MainApp(App):
             self.box2.add_widget(self.run_numbers_label)
             self.run_numbers_input.size_hint = (1, 0.8)
             self.box2.add_widget(self.run_numbers_input)
+            
+            self.box5.clear_widgets()
+            self.e1.size_hint = (0.5, 1)
+            for i in [2, 5]:
+                getattr(self, f'e{i}').size_hint = (0.275, 1)
+            for i in [3, 6]:
+                getattr(self, f'e{i}').size_hint = (0.15, 0.7)
+            for i in [4, 7]:
+                getattr(self, f'e{i}').size_hint = (0.075, 1)
+            for i in range(1,8):
+                self.box5.add_widget(getattr(self, f'e{i}'))
 
             self.box7.clear_widgets()
             self.box7.add_widget(self.create_map)
@@ -2855,6 +2962,17 @@ class MainApp(App):
             self.box2.add_widget(self.run_numbers_label)
             self.run_numbers_input.size_hint = (1, 0.8)
             self.box2.add_widget(self.run_numbers_input)
+
+            self.box5.clear_widgets()
+            self.e1.size_hint = (0.5, 1)
+            for i in [2, 5, 8]:
+                getattr(self, f'e{i}').size_hint = (0.1833, 1)
+            for i in [3, 6, 9]:
+                getattr(self, f'e{i}').size_hint = (0.1, 0.7)
+            for i in [4, 7, 10]:
+                getattr(self, f'e{i}').size_hint = (0.05, 1)
+            for i in range(1, 11):
+                self.box5.add_widget(getattr(self, f'e{i}'))
 
             self.box7.clear_widgets()
             self.box7.add_widget(self.create_map)

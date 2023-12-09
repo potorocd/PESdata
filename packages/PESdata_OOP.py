@@ -623,7 +623,7 @@ class create_batch_WESPE:
             np.savetxt(file_full, out, delimiter='    ')
             print(f"Saved as {file_full}")
 
-    def axs_plot(self, axs, mode='3D'):
+    def axs_plot(self, axs):
         # Loading configs from json file.
         try:
             with open('config.json', 'r') as json_file:
@@ -808,8 +808,6 @@ class create_batch_WESPE:
                 val_max = self.image_data_z.max()
                 self.Map_2D_plot = self.Map_3D[:, :, i_max]
                 image_data = self.Map_2D_plot.values
-                
-                print(np.max(image_data), np.mean(image_data), np.median(image_data))
 
                 vmin = np.min(image_data)
                 vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
@@ -1821,8 +1819,8 @@ class create_batch_MM(create_batch_WESPE):
             self.y_step = 1
         self.x_step = self.Map_2D.coords['Dim_x'].values
         self.x_step = np.min(np.abs(np.gradient(self.x_step)))
-        self.x_step = np.around(self.x_step, 2)
-        self.y_step = np.around(self.y_step, 2)
+        self.x_step = np.around(self.x_step, self.decimal_n(self.energy_step))
+        self.y_step = np.around(self.y_step, self.decimal_n(self.delay_step))
 
 
 class read_file_MM(create_batch_WESPE):
@@ -1835,6 +1833,16 @@ class read_file_MM(create_batch_WESPE):
         '''
         Object initialization where reading out of data from hdf5 files occurs.
         '''
+        self.unit_dict = {'x': ['X Pixel', 'Alt X Pixel', 'karb. units', 'x'],
+                          'y': ['Y Pixel', 'Alt Y Pixel', 'karb. units', 'y'],
+                          't': ['Kinetic energy', 'Binding energy',
+                                'karb. units', 'DLD_energy'],
+                          'd': ['Delay stage values', 'Delay',
+                                'ps', 'DLD_delay'],
+                          'b': ['MicroBunch ID', 'Alt MicroBunch ID',
+                                'units', 'MB_ID']
+                          }
+
         self.file_full = file_full
         self.run_num = self.file_full.split(os.sep)[-1]
         self.detector = self.run_num.split('.')[-1]
@@ -1848,7 +1856,13 @@ class read_file_MM(create_batch_WESPE):
         else:
             self.is_static = False
 
-        f = read_parquet(self.file_full, engine='fastparquet').dropna()
+        f = read_parquet(self.file_full, engine='fastparquet')
+        try:
+            f = f.dropna(subset=['trainId', 'pulseId', 'dldPosX', 'dldPosY',
+                                 'dldTimeSteps', 'delayStage'], how='any')
+        except:
+            f = f.dropna(subset=['trainId', 'pulseId', 'x', 'y',
+                                 'dldTime', 'delayStage'], how='any')
         self.file_folder = self.file_full.split(os.sep)[:-1]
         self.file_folder = f'{os.sep}'.join(self.file_folder)
 
@@ -1959,7 +1973,7 @@ class read_file_MM(create_batch_WESPE):
         self.B_ID_const = self.B_ID
         self.B_filter = False
         self.Macro_B_filter = 'All_Macro_B'
-        self.Micro_B_filter = 'All_Micro_B'
+        self.Micro_B_filter = 'All_Dims'
 
     def Bunch_filter(self, B_range, B_type='MacroBunch'):
         '''
@@ -1977,23 +1991,32 @@ class read_file_MM(create_batch_WESPE):
             B_max = np.min(self.B_ID_const)+(self.B_num)*max(B_range)/100
             min_list = np.where(self.B_ID < B_min)
             max_list = np.where(self.B_ID > B_max)
-            print('Result of MacroBunch filtering:')
             self.Macro_B_filter = f'{int(B_min)}-{int(B_max)}_Macro_B'
-        elif B_type == 'MicroBunch':
+        else:
             B_min = min(B_range)
             B_max = max(B_range)
-            min_list = np.where(self.MB_ID < B_min)
-            max_list = np.where(self.MB_ID > B_max)
-            print('Result of MicroBunch filtering:')
-            self.Micro_B_filter = f'{int(B_min)}-{int(B_max)}_Micro_B'
+            if B_type == 'MicroBunch':
+                min_list = np.where(self.MB_ID < B_min)
+                max_list = np.where(self.MB_ID > B_max)
+                self.Micro_B_filter = f'{int(B_min)}-{int(B_max)}_Micro_B'
+            else:
+                attr = getattr(self, self.unit_dict[B_type][3])
+                min_list = np.where(attr < B_min)
+                max_list = np.where(attr > B_max)
+                if self.Micro_B_filter == 'All_Dims':
+                    self.Micro_B_filter = f'{B_min}-{B_max}_{B_type}'
+                else:
+                    if f'{B_min}-{B_max}_{B_type}' not in self.Micro_B_filter:
+                        self.Micro_B_filter += f'_{B_min}-{B_max}_{B_type}'
         del_list = np.append(min_list, max_list)
+        print(f'Result of \'{B_type}\' dimension filtering:')
         print(f'{len(del_list)} electrons removed from Run {self.run_num}')
         if del_list.size != 0:
             self.DLD_energy = np.delete(self.DLD_energy, del_list)
             self.DLD_delay = np.delete(self.DLD_delay, del_list)
             self.x = np.delete(self.x, del_list)
             self.y = np.delete(self.y, del_list)
-            if isinstance(self.GMD, int) is False:
+            if isinstance(self.BAM, int) is False:
                 self.BAM = np.delete(self.BAM, del_list)
             if isinstance(self.GMD, int) is False:
                 self.GMD = np.delete(self.GMD, del_list)
@@ -2001,24 +2024,24 @@ class read_file_MM(create_batch_WESPE):
                 self.mono = np.delete(self.mono, del_list)
             self.B_ID = np.delete(self.B_ID, del_list)
             self.MB_ID = np.delete(self.MB_ID, del_list)
-            if isinstance(self.GMD, int) is False:
+            if isinstance(self.diode, int) is False:
                 self.diode = np.delete(self.diode, del_list)
 
-    def create_map(self, energy_step=0.05, delay_step=0.1,
+    def create_map(self, energy_step=0.05, delay_step=0.1, z_step=100,
                    ordinate='td', save='on'):
-        self.ordinate = ordinate
         '''
         Method for creation of delay-energy map from the data loaded at
         initialization.
         energy_step and delay_step determine the bin size for
         'Dim_x' and 'Delay dimensions'
         '''
-        unit_dict = {'x': ['X Pixel', 'Alt X Pixel', 'karb. units', 'x'],
-                     'y': ['Y Pixel', 'Alt Y Pixel', 'karb. units', 'y'],
-                     't': ['Kinetic energy', 'Binding energy', 'karb. units', 'DLD_energy'],
-                     'd': ['Delay stage values', 'Delay', 'ps', 'DLD_delay'],
-                     'b': ['MicroBunch ID', 'Alt MicroBunch ID', 'units', 'MB_ID']
-                    }
+
+        self.ordinate = ordinate
+        
+        if len(ordinate) > 2:
+            self.switch_3D = True
+        else:
+            self.switch_3D = False
 
         if ordinate[0] in ['x', 'y', 't'] and energy_step < 0.001:
             energy_step = 0.001
@@ -2043,13 +2066,12 @@ class read_file_MM(create_batch_WESPE):
         save_path = save_path + f"_{self.ordinate}"
         save_path = save_path + f"_{energy_step}kau"
         save_path = save_path + f"_{delay_step}ps"
+        if self.switch_3D is True:
+            self.z_step = z_step
+            save_path = save_path + f"_{z_step}ps"
         save_path = save_path + f"_{self.Macro_B_filter}"
         save_path = save_path + f"_{self.Micro_B_filter}.nc"
         try:
-            if len(ordinate) > 2:
-                self.switch_3D = True
-            else:
-                self.switch_3D = False
             # if self.ordinate != 'delay':
             #     raise FileNotFoundError
 
@@ -2063,22 +2085,22 @@ class read_file_MM(create_batch_WESPE):
                 if 'Run' in i:
                     data_name = i
 
-            x_label = unit_dict[ordinate[0]][0]
-            y_label = unit_dict[ordinate[1]][0]
-            y_units = unit_dict[ordinate[1]][2]
-            x_units = unit_dict[ordinate[0]][2]
-            x_label_a = unit_dict[ordinate[0]][1]
-            y_label_a = unit_dict[ordinate[1]][1]
-            x_units_a = unit_dict[ordinate[0]][2]
-            y_units_a = unit_dict[ordinate[1]][2]
+            x_label = self.unit_dict[ordinate[0]][0]
+            y_label = self.unit_dict[ordinate[1]][0]
+            y_units = self.unit_dict[ordinate[1]][2]
+            x_units = self.unit_dict[ordinate[0]][2]
+            x_label_a = self.unit_dict[ordinate[0]][1]
+            y_label_a = self.unit_dict[ordinate[1]][1]
+            x_units_a = self.unit_dict[ordinate[0]][2]
+            y_units_a = self.unit_dict[ordinate[1]][2]
             x_order_rec = False
             y_order_rec = False
 
             if self.switch_3D is True:
-                z_label = unit_dict[ordinate[2]][0]
-                z_units = unit_dict[ordinate[2]][2]
-                z_label_a = unit_dict[ordinate[2]][1]
-                z_units_a = unit_dict[ordinate[2]][2]
+                z_label = self.unit_dict[ordinate[2]][0]
+                z_units = self.unit_dict[ordinate[2]][2]
+                z_label_a = self.unit_dict[ordinate[2]][1]
+                z_units_a = self.unit_dict[ordinate[2]][2]
                 z_order_rec = False
                 image_data_z = loaded_map.variables[z_label].values
 
@@ -2226,13 +2248,10 @@ class read_file_MM(create_batch_WESPE):
             Picking Delay or MB_ID as the ordinate axis.
             '''
 
-            DLD_energy = getattr(self, unit_dict[ordinate[0]][3])
-            parameter = getattr(self, unit_dict[ordinate[1]][3])
-            try:
-                z_parameter = getattr(self, unit_dict[ordinate[2]][3])
-                self.switch_3D = True
-            except:
-                self.switch_3D = False
+            DLD_energy = getattr(self, self.unit_dict[ordinate[0]][3])
+            parameter = getattr(self, self.unit_dict[ordinate[1]][3])
+            if self.switch_3D is True:
+                z_parameter = getattr(self, self.unit_dict[ordinate[2]][3])                
 
             if use_julia is True:
                 DLD_delay_r = np.array(rounding_jl(parameter, delay_step))
@@ -2257,8 +2276,9 @@ class read_file_MM(create_batch_WESPE):
                                      self.decimal_n(delay_step))
 
             if self.switch_3D is True:
-                z_step = (z_parameter.max()-z_parameter.min())/100
-                z_step = np.around(z_step, 3)
+                if z_step >= 100:
+                    z_step = (z_parameter.max()-z_parameter.min())/z_step
+                    z_step = np.around(z_step, 3)
                 image_data_z = np.arange(z_parameter.min(),
                                          z_parameter.max()+z_step,
                                          z_step)
@@ -2298,14 +2318,14 @@ class read_file_MM(create_batch_WESPE):
                         line.append(array_2.shape[0])
                     image_data.append(line)
 
-            x_label = unit_dict[ordinate[0]][0]
-            y_label = unit_dict[ordinate[1]][0]
-            y_units = unit_dict[ordinate[1]][2]
-            x_units = unit_dict[ordinate[0]][2]
-            x_label_a = unit_dict[ordinate[0]][1]
-            y_label_a = unit_dict[ordinate[1]][1]
-            x_units_a = unit_dict[ordinate[0]][2]
-            y_units_a = unit_dict[ordinate[1]][2]
+            x_label = self.unit_dict[ordinate[0]][0]
+            y_label = self.unit_dict[ordinate[1]][0]
+            y_units = self.unit_dict[ordinate[1]][2]
+            x_units = self.unit_dict[ordinate[0]][2]
+            x_label_a = self.unit_dict[ordinate[0]][1]
+            y_label_a = self.unit_dict[ordinate[1]][1]
+            x_units_a = self.unit_dict[ordinate[0]][2]
+            y_units_a = self.unit_dict[ordinate[1]][2]
             x_order_rec = False
             y_order_rec = False
 
@@ -2344,10 +2364,10 @@ class read_file_MM(create_batch_WESPE):
                                       dims=["Dim_y", "Dim_x"],
                                       coords=coords)
             else:
-                z_label = unit_dict[ordinate[2]][0]
-                z_units = unit_dict[ordinate[2]][2]
-                z_label_a = unit_dict[ordinate[2]][1] 
-                z_units_a = unit_dict[ordinate[2]][2]
+                z_label = self.unit_dict[ordinate[2]][0]
+                z_units = self.unit_dict[ordinate[2]][2]
+                z_label_a = self.unit_dict[ordinate[2]][1] 
+                z_units_a = self.unit_dict[ordinate[2]][2]
                 z_order_rec = False
 
                 coords = {x_label: ("Dim_x", image_data_x),
@@ -4075,7 +4095,7 @@ class map_cut:
                 self.cuts.append(cut.values)
                 self.map_show.append(True)
   
-    def correlate_i(self, step=0.001, c_f=0.1):
+    def correlate_i(self, step=0.0001, c_f=0.1):
         data = self.Map_2D_plot.values
         data_step = np.gradient(self.Map_2D_plot.coords['Dim_x'].values)[0]
         delay = self.Map_2D_plot.coords['Dim_y'].values
@@ -4570,25 +4590,40 @@ class map_cut:
         else:
             self.cut_y_max = np.nanmax(self.cuts)
             self.cut_y_min = np.nanmin(self.cuts)
+
         self.cut_y_tick = (self.cut_y_max - self.cut_y_min)/config.t_n_ticks_y
-        if self.cut_y_tick == 0:
-            self.cut_y_tick = 1
-        if self.cut_y_tick < 1 and self.cut_y_tick >= 0.05:
-            self.cut_y_tick_decimal = 1
-        elif self.cut_y_tick > 0.005 and self.cut_y_tick < 0.05:
-            self.cut_y_tick_decimal = 2
-        elif self.cut_y_tick < 0.005:
-            self.cut_y_tick_decimal = 3
+        
+        if self.cut_y_max - self.cut_y_min > 5:
+            self.cut_y_tick = math.ceil(self.cut_y_tick)
+            if self.cut_y_tick == 0:
+                self.cut_y_tick = 1
         else:
-            self.cut_y_tick_decimal = 0
-        self.cut_y_tick = round(self.cut_y_tick, self.cut_y_tick_decimal)
+            for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01, 0.001, 0.0001]:
+                if read_file_WESPE.rounding(self.cut_y_tick, option) > 0:
+                    self.cut_y_tick = read_file_WESPE.rounding(self.cut_y_tick,
+                                                               option)
+                    self.cut_y_tick_decimal = read_file_WESPE.decimal_n(option)
+                    break
+            self.cut_y_tick = round(self.cut_y_tick,
+                                    self.cut_y_tick_decimal)
+
         self.cut_x_max = np.nanmax(self.coords)
         self.cut_x_min = np.nanmin(self.coords)
-        self.cut_x_tick = (self.cut_x_max - self.cut_x_min)/config.t_n_ticks_x
-        self.cut_x_tick_decimal = 0
-        self.cut_x_tick = round(self.cut_x_tick, self.cut_x_tick_decimal)
-        if self.cut_x_tick == 0:
-            self.cut_x_tick = 1
+        self.cut_x_tick = (self.cut_x_max - self.cut_x_min)/config.t_n_ticks_x            
+
+        if self.cut_x_max - self.cut_x_min > 5:
+            self.cut_x_tick = math.ceil(self.cut_x_tick)
+            if self.cut_x_tick == 0:
+                self.cut_x_tick = 1
+        else:
+            for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01]:
+                if read_file_WESPE.rounding(self.cut_x_tick, option) > 0:
+                    self.cut_x_tick = read_file_WESPE.rounding(self.cut_x_tick,
+                                                               option)
+                    self.cut_x_tick_decimal = read_file_WESPE.decimal_n(option)
+                    break
+            self.cut_x_tick = round(self.cut_x_tick,
+                                    self.cut_x_tick_decimal)
 
         if self.cut_info.attrs['x_alt'] is True:
             x_label = self.cut_info.attrs['x_label_a']
@@ -4988,16 +5023,24 @@ if __name__ == "__main__":
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
+    # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
-        i.create_map(ordinate='xy', energy_step=0.001, delay_step=0.001, save='on') 
+        i.Bunch_filter([0.4,0.9], B_type='x')
+        i.Bunch_filter([0.4,0.9], B_type='y')
+        i.Bunch_filter([4.25,4.75], B_type='t')
+        i.create_map(ordinate='td', energy_step=0.005, delay_step=0.1, z_step=0.2,
+                     save='on')
     b.create_map()
-    #b.norm_total_e()
-    # b.set_BE()
+    # b.save_map_dat()
+    b.norm_total_e()
+    b.set_BE()
+    c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
+    # c.correlate_i()
     # b.ROI([0.4,0.85], axis='Dim_x', mod_map=True)
     # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    plot_files([b])
+    plot_files([b,c])
 else:
     # Loading configs from json file.
     try:
