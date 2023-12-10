@@ -1761,8 +1761,9 @@ class MainApp(App):
                 self.batch.set_BE()
 
             if self.h3.state == 'down':
-                self.batch.create_dif_map()
-                self.batch.set_dif_map()
+                if self.batch.Map_2D.ndim < 3:
+                    self.batch.create_dif_map()
+                    self.batch.set_dif_map()
 
             if self.j3.state == 'down':
                 self.batch.norm_01()
@@ -1790,10 +1791,16 @@ class MainApp(App):
                     ROI_D = [np.min(ROI_D), np.max(ROI_D)]
                     print(ROI_D)
                 self.batch.ROI(ROI_D, 'Dim_y')
-
-            plot_files(self.batch, dpi=self.dpi,
-                       fig_width=self.fig_width,
-                       fig_height=self.fig_height)
+                
+            if self.h3.state == 'down' and self.batch.Map_2D.ndim > 2:
+                plot_files(self.batch, dpi=self.dpi,
+                           fig_width=self.fig_width,
+                           fig_height=self.fig_height,
+                           dif_3D=True)
+            else:
+                plot_files(self.batch, dpi=self.dpi,
+                           fig_width=self.fig_width,
+                           fig_height=self.fig_height)
 
             if self.create_plot_mode.state == 'down':
                 path = self.directory_input.text.strip() + os.sep

@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import MultipleLocator
 from matplotlib.widgets import Slider
+from matplotlib.widgets import RangeSlider
 import matplotlib
 from scipy.signal import savgol_filter
 import xarray as xr
@@ -623,7 +624,7 @@ class create_batch_WESPE:
             np.savetxt(file_full, out, delimiter='    ')
             print(f"Saved as {file_full}")
 
-    def axs_plot(self, axs):
+    def axs_plot(self, axs, dif_3D=False):
         # Loading configs from json file.
         try:
             with open('config.json', 'r') as json_file:
@@ -795,87 +796,202 @@ class create_batch_WESPE:
                                      cmap=config.cmap, aspect='auto')
                 cbar_pad = 0.09
             else:
-                self.Map_3D = self.Map_2D_plot
-                cbar_pad = '2%'
-                I_curve = np.sum(self.Map_3D, axis=(0, 1))
-                length = I_curve.shape[0]
-                i_max = I_curve.argmax()
-                if i_max < length*0.05 or i_max > length*0.95:
-                    i_max = int(length*0.5)
-                self.image_data_z = self.Map_2D_plot.coords['Dim_z'].values
-                valinit = self.image_data_z[i_max]
-                val_min = self.image_data_z.min()
-                val_max = self.image_data_z.max()
-                self.Map_2D_plot = self.Map_3D[:, :, i_max]
-                image_data = self.Map_2D_plot.values
-
-                vmin = np.min(image_data)
-                vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
-                self.map_z_tick = self.map_z_tick*config.map_scale
-                if vmin < 0:
-                    vmin = vmin*config.map_scale
-
-                if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
-                    im1 = axs.imshow(image_data, origin='upper',
-                                     interpolation=interpolation,
-                                     extent=extent,
-                                     cmap=config.cmap, aspect='auto',
-                                     norm=colors.TwoSlopeNorm(vmin=vmin,
-                                                              vcenter=TwoSlopeNorm*vmax,
-                                                              vmax=vmax))
-                else:
-                    im1 = axs.imshow(image_data, origin='upper',
-                                     interpolation=interpolation,
-                                     extent=extent,
-                                     vmin=vmin,
-                                     vmax=vmax,
-                                     cmap=config.cmap, aspect='auto')
-                # plt.ion()
-                divider = make_axes_locatable(axs)
-                cax2 = divider.append_axes("right", size="5%", pad='5%')
-                self.t_slider = Slider(ax=cax2,
-                                       label='z',
-                                       track_color='dimgrey',
-                                       valmin=val_min,
-                                       valmax=val_max,
-                                       valinit=valinit,
-                                       orientation="vertical",
-                                       valstep=self.image_data_z,
-                                       handle_style={'facecolor': 'white',
-                                                     'edgecolor': '.9',
-                                                     'size': '20'
-                                                    }
-                                       )
-
-                def update(val):
-                    pos = self.t_slider.val
-                    self.Map_2D_plot = self.Map_3D[:,:,np.where(self.image_data_z==pos)[0][0]]
+                if dif_3D is True:
+                    self.Map_3D = self.Map_2D_plot
+                    cbar_pad = '2%'
+                    I_curve = np.sum(self.Map_3D, axis=(0, 1))
+                    length = I_curve.shape[0]
+                    i_max = I_curve.argmax()
+                    if i_max < length*0.05 or i_max > length*0.95:
+                        i_max = int(length*0.5)
+                    self.image_data_z = self.Map_2D_plot.coords['Dim_z'].values
+                    i_init_1 = (int(0.7*length), int(0.9*length))
+                    i_init_2 = (int(0.1*length), int(0.3*length))
+                    valinit_1 = (self.image_data_z[i_init_1[0]], self.image_data_z[i_init_1[1]])
+                    valinit_2 = (self.image_data_z[i_init_2[0]], self.image_data_z[i_init_2[1]])
+                    val_min = self.image_data_z.min()
+                    val_max = self.image_data_z.max()
+                    selection_1 = slice(i_init_1[0], i_init_1[1])
+                    selection_2 = slice(i_init_2[0], i_init_2[1])
+                    slice_1 = self.Map_3D[:, :, selection_1].mean(dim='Dim_z')
+                    slice_2 = self.Map_3D[:, :, selection_2].mean(dim='Dim_z')
+                    self.Map_2D_plot = slice_2 - slice_1
                     image_data = self.Map_2D_plot.values
-                    vmin = np.min(image_data)
-                    vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
-                    im1.set_data(image_data)
+                    self.Map_2D_plot.attrs = self.Map_3D.attrs
 
-                    self.map_z_tick = (vmax - vmin)/config.map_n_ticks_z
-                    if self.map_z_tick < 1:
-                        self.map_z_tick_decimal = 1
-                    else:
-                        self.map_z_tick_decimal = 0
-                    self.map_z_tick = round(self.map_z_tick, self.map_z_tick_decimal)
-                    if self.map_z_tick == 0:
-                        self.map_z_tick = 1
+                    vmin = np.min(image_data)
+                    # vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                    vmax = np.max(image_data)
+                    self.map_z_tick = self.map_z_tick*config.map_scale
+                    if vmin < 0:
+                        vmin = vmin*config.map_scale
 
                     if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
-                        im1.set_clim(vmin=vmin, vmax=vmax,
-                                     vcenter=TwoSlopeNorm*vmax)
+                        im1 = axs.imshow(image_data, origin='upper',
+                                         interpolation=interpolation,
+                                         extent=extent,
+                                         cmap=config.cmap, aspect='auto',
+                                         norm=colors.TwoSlopeNorm(vmin=vmin,
+                                                                  vcenter=TwoSlopeNorm*vmax,
+                                                                  vmax=vmax))
                     else:
-                        im1.set_clim(vmin=vmin, vmax=vmax)
-                    self.cbar.set_ticks(MultipleLocator(self.map_z_tick))
-                    # plt.gcf().canvas.draw_idle()
-                    # plt.gcf().canvas.draw()
-                    # plt.gcf().canvas.flush_events()
-                    return self.t_slider
-
-                self.t_slider.on_changed(update)
+                        im1 = axs.imshow(image_data, origin='upper',
+                                         interpolation=interpolation,
+                                         extent=extent,
+                                         vmin=vmin,
+                                         vmax=vmax,
+                                         cmap=config.cmap, aspect='auto')
+    
+                    divider = make_axes_locatable(axs)
+                    cax2 = divider.append_axes("right", size="5%", pad='5%')
+                    self.t_slider_1 = RangeSlider(ax=cax2,
+                                                  label='s1',
+                                                  track_color='dimgrey',
+                                                  valmin=val_min,
+                                                  valmax=val_max,
+                                                  valinit=valinit_1,
+                                                  orientation="vertical",
+                                                  valstep=self.image_data_z,
+                                                  handle_style={'facecolor': 'white',
+                                                                'edgecolor': '.9',
+                                                                'size': '20'
+                                                               }
+                                                  )
+    
+                    cax3 = divider.append_axes("right", size="5%", pad='5%')
+                    self.t_slider_2 = RangeSlider(ax=cax3,
+                                                  label='s2',
+                                                  track_color='dimgrey',
+                                                  valmin=val_min,
+                                                  valmax=val_max,
+                                                  valinit=valinit_2,
+                                                  orientation="vertical",
+                                                  valstep=self.image_data_z,
+                                                  handle_style={'facecolor': 'white',
+                                                                'edgecolor': '.9',
+                                                                'size': '20'
+                                                               }
+                                                  )
+    
+                    def update(val):
+                        pos_1 = self.t_slider_1.val
+                        pos_2 = self.t_slider_2.val
+                        selection_1 = np.where((self.image_data_z>=pos_1[0]) & (self.image_data_z<=pos_1[1]))[0]
+                        selection_2 = np.where((self.image_data_z>=pos_2[0]) & (self.image_data_z<=pos_2[1]))[0]
+                        slice_1 = self.Map_3D[:,:,selection_1].mean(dim='Dim_z')
+                        slice_2 = self.Map_3D[:,:,selection_2].mean(dim='Dim_z')
+                        self.Map_2D_plot = slice_2 - slice_1
+                        self.Map_2D_plot.attrs = self.Map_3D.attrs
+                        image_data = self.Map_2D_plot.values
+                        vmin = np.min(image_data)
+                        # vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                        vmax = np.max(image_data)
+                        im1.set_data(image_data)
+    
+                        self.map_z_tick = (vmax - vmin)/config.map_n_ticks_z
+                        if self.map_z_tick < 1:
+                            self.map_z_tick_decimal = 1
+                        else:
+                            self.map_z_tick_decimal = 0
+                        self.map_z_tick = round(self.map_z_tick, self.map_z_tick_decimal)
+                        if self.map_z_tick == 0:
+                            self.map_z_tick = 1
+    
+                        if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                            im1.set_clim(vmin=vmin, vmax=vmax,
+                                         vcenter=TwoSlopeNorm*vmax)
+                        else:
+                            im1.set_clim(vmin=vmin, vmax=vmax)
+                        self.cbar.set_ticks(MultipleLocator(self.map_z_tick))
+                        # plt.gcf().canvas.draw_idle()
+                        # plt.gcf().canvas.draw()
+                        # plt.gcf().canvas.flush_events()
+                        return self.t_slider_1, self.t_slider_1
+    
+                    self.t_slider_1.on_changed(update)
+                    self.t_slider_2.on_changed(update)
+                else:
+                    self.Map_3D = self.Map_2D_plot
+                    cbar_pad = '2%'
+                    I_curve = np.sum(self.Map_3D, axis=(0, 1))
+                    length = I_curve.shape[0]
+                    i_max = I_curve.argmax()
+                    if i_max < length*0.05 or i_max > length*0.95:
+                        i_max = int(length*0.5)
+                    self.image_data_z = self.Map_2D_plot.coords['Dim_z'].values
+                    valinit = self.image_data_z[i_max]
+                    val_min = self.image_data_z.min()
+                    val_max = self.image_data_z.max()
+                    self.Map_2D_plot = self.Map_3D[:, :, i_max]
+                    image_data = self.Map_2D_plot.values
+    
+                    vmin = np.min(image_data)
+                    vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                    self.map_z_tick = self.map_z_tick*config.map_scale
+                    if vmin < 0:
+                        vmin = vmin*config.map_scale
+    
+                    if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                        im1 = axs.imshow(image_data, origin='upper',
+                                         interpolation=interpolation,
+                                         extent=extent,
+                                         cmap=config.cmap, aspect='auto',
+                                         norm=colors.TwoSlopeNorm(vmin=vmin,
+                                                                  vcenter=TwoSlopeNorm*vmax,
+                                                                  vmax=vmax))
+                    else:
+                        im1 = axs.imshow(image_data, origin='upper',
+                                         interpolation=interpolation,
+                                         extent=extent,
+                                         vmin=vmin,
+                                         vmax=vmax,
+                                         cmap=config.cmap, aspect='auto')
+                    # plt.ion()
+                    divider = make_axes_locatable(axs)
+                    cax2 = divider.append_axes("right", size="5%", pad='5%')
+                    self.t_slider = Slider(ax=cax2,
+                                           label='z',
+                                           track_color='dimgrey',
+                                           valmin=val_min,
+                                           valmax=val_max,
+                                           valinit=valinit,
+                                           orientation="vertical",
+                                           valstep=self.image_data_z,
+                                           handle_style={'facecolor': 'white',
+                                                         'edgecolor': '.9',
+                                                         'size': '20'
+                                                        }
+                                           )
+    
+                    def update(val):
+                        pos = self.t_slider.val
+                        self.Map_2D_plot = self.Map_3D[:,:,np.where(self.image_data_z==pos)[0][0]]
+                        image_data = self.Map_2D_plot.values
+                        vmin = np.min(image_data)
+                        vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                        im1.set_data(image_data)
+    
+                        self.map_z_tick = (vmax - vmin)/config.map_n_ticks_z
+                        if self.map_z_tick < 1:
+                            self.map_z_tick_decimal = 1
+                        else:
+                            self.map_z_tick_decimal = 0
+                        self.map_z_tick = round(self.map_z_tick, self.map_z_tick_decimal)
+                        if self.map_z_tick == 0:
+                            self.map_z_tick = 1
+    
+                        if TwoSlopeNorm < 1 and TwoSlopeNorm > 0:
+                            im1.set_clim(vmin=vmin, vmax=vmax,
+                                         vcenter=TwoSlopeNorm*vmax)
+                        else:
+                            im1.set_clim(vmin=vmin, vmax=vmax)
+                        self.cbar.set_ticks(MultipleLocator(self.map_z_tick))
+                        # plt.gcf().canvas.draw_idle()
+                        # plt.gcf().canvas.draw()
+                        # plt.gcf().canvas.flush_events()
+                        return self.t_slider
+    
+                    self.t_slider.on_changed(update)
 
             if switch_3D is False:
                 divider = make_axes_locatable(axs)
@@ -4860,7 +4976,7 @@ class plot_files:
     '''
 
     def __init__(self, objects, direction='down', dpi=300,
-                 fig_width=7, fig_height=5):
+                 fig_width=7, fig_height=5, dif_3D=False):
         # Loading configs from json file.
         try:
             with open('config.json', 'r') as json_file:
@@ -4899,9 +5015,9 @@ class plot_files:
                 fig_p = -fig_p
 
             if fig_number == 1:
-                object_i.axs_plot(axs)
+                object_i.axs_plot(axs, dif_3D=dif_3D)
             else:
-                object_i.axs_plot(axs[fig_p])
+                object_i.axs_plot(axs[fig_p], dif_3D=dif_3D)
 
         self.axs = axs
         self.fig = fig
@@ -5023,24 +5139,25 @@ if __name__ == "__main__":
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
+    run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
         i.Bunch_filter([0.4,0.9], B_type='x')
         i.Bunch_filter([0.4,0.9], B_type='y')
-        i.Bunch_filter([4.25,4.75], B_type='t')
-        i.create_map(ordinate='td', energy_step=0.005, delay_step=0.1, z_step=0.2,
+        i.Bunch_filter([4,4.27], B_type='t')
+        i.create_map(ordinate='xyd', energy_step=0.005, delay_step=0.005, z_step=0.1,
                      save='on')
     b.create_map()
     # b.save_map_dat()
-    b.norm_total_e()
-    b.set_BE()
-    c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
+    # b.norm_total_e()
+    # b.set_BE()
+    # c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
     # c.correlate_i()
     # b.ROI([0.4,0.85], axis='Dim_x', mod_map=True)
     # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    plot_files([b,c])
+    plot_files([b], dif_3D=True)
 else:
     # Loading configs from json file.
     try:
