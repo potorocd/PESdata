@@ -717,14 +717,17 @@ class create_batch_WESPE:
                 if self.map_y_tick == 0:
                     self.map_y_tick = 1
             else:
-                for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01]:
+                for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01, 0.001, 0.0001]:
                     if self.rounding(self.map_y_tick, option) > 0:
                         self.map_y_tick = self.rounding(self.map_y_tick,
                                                         option)
                         self.map_y_tick_decimal = self.decimal_n(option)
+                        self.map_y_tick = round(self.map_y_tick,
+                                                self.map_y_tick_decimal)
                         break
-                self.map_y_tick = round(self.map_y_tick,
-                                        self.map_y_tick_decimal)
+                    else:
+                        if option == 0.0001:
+                            self.map_y_tick = 0.0001
 
             self.map_x_max = np.nanmax(image_data_x)
             self.map_x_min = np.nanmin(image_data_x)
@@ -734,14 +737,17 @@ class create_batch_WESPE:
                 if self.map_x_tick == 0:
                     self.map_x_tick = 1
             else:
-                for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01]:
+                for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01, 0.001, 0.0001]:
                     if self.rounding(self.map_x_tick, option) > 0:
                         self.map_x_tick = self.rounding(self.map_x_tick,
                                                         option)
                         self.map_x_tick_decimal = self.decimal_n(option)
+                        self.map_x_tick = round(self.map_x_tick,
+                                                self.map_x_tick_decimal)
                         break
-                self.map_x_tick = round(self.map_x_tick,
-                                        self.map_x_tick_decimal)
+                    else:
+                        if option == 0.0001:
+                            self.map_x_tick = 0.0001
 
             if self.Map_2D_plot.attrs[order_x] is False:
                 x_start = np.min(image_data_x)
@@ -4684,7 +4690,7 @@ class map_cut:
         self.cuts = cuts
         self.arb_u = True
 
-    def axs_plot(self, axs):
+    def axs_plot(self, axs, dif_3D=False):
         '''
         Method for creating matplotlib axes for map_cut slices.
         '''
@@ -4719,9 +4725,12 @@ class map_cut:
                     self.cut_y_tick = read_file_WESPE.rounding(self.cut_y_tick,
                                                                option)
                     self.cut_y_tick_decimal = read_file_WESPE.decimal_n(option)
+                    self.cut_y_tick = round(self.cut_y_tick,
+                                            self.cut_y_tick_decimal)
                     break
-            self.cut_y_tick = round(self.cut_y_tick,
-                                    self.cut_y_tick_decimal)
+                else:
+                    if option == 0.0001:
+                        self.cut_y_tick = 0.0001
 
         self.cut_x_max = np.nanmax(self.coords)
         self.cut_x_min = np.nanmin(self.coords)
@@ -4732,14 +4741,17 @@ class map_cut:
             if self.cut_x_tick == 0:
                 self.cut_x_tick = 1
         else:
-            for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01]:
+            for option in [1, 0.5, 0.2, 0.1, 0.05, 0.01, 0.001, 0.0001]:
                 if read_file_WESPE.rounding(self.cut_x_tick, option) > 0:
                     self.cut_x_tick = read_file_WESPE.rounding(self.cut_x_tick,
                                                                option)
                     self.cut_x_tick_decimal = read_file_WESPE.decimal_n(option)
+                    self.cut_x_tick = round(self.cut_x_tick,
+                                            self.cut_x_tick_decimal)
                     break
-            self.cut_x_tick = round(self.cut_x_tick,
-                                    self.cut_x_tick_decimal)
+                else:
+                    if option == 0.0001:
+                        self.cut_x_tick = 0.0001
 
         if self.cut_info.attrs['x_alt'] is True:
             x_label = self.cut_info.attrs['x_label_a']
@@ -5147,7 +5159,7 @@ if __name__ == "__main__":
         i.Bunch_filter([0.4,0.9], B_type='x')
         i.Bunch_filter([0.4,0.9], B_type='y')
         i.Bunch_filter([4,4.27], B_type='t')
-        i.create_map(ordinate='xyd', energy_step=0.005, delay_step=0.005, z_step=0.1,
+        i.create_map(ordinate='td', energy_step=0.005, delay_step=0.005, z_step=0.1,
                      save='on')
     b.create_map()
     # b.save_map_dat()
