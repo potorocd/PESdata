@@ -32,6 +32,8 @@ from time import gmtime
 from datetime import datetime
 from types import SimpleNamespace
 import matplotlib.pyplot as plt
+from sys import exc_info
+from traceback import extract_tb
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
@@ -1197,8 +1199,6 @@ class MainApp(App):
             self.run_numbers_input.text = ','.join(items)
         except Exception as err:
             print('Unable to autocomplete!')
-            print('Full error message:')
-            print(err)
 
     def suggestion_dir(self, instance):
         try:
@@ -1225,8 +1225,6 @@ class MainApp(App):
             self.directory_input.text = os.sep.join(items)
         except Exception as err:
             print('Unable to autocomplete!')
-            print('Full error message:')
-            print(err)
 
     def callback_1_0(self, instance):
         self.upload_runs.text = 'Loading...'
@@ -1582,8 +1580,10 @@ class MainApp(App):
             self.upload_runs.text = "Upload runs"
         except Exception as err:
             print('Unable to open file(s)!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
             self.upload_runs.text = "Upload runs"
 
     def callback_2_0(self, instance):
@@ -1713,9 +1713,11 @@ class MainApp(App):
             with open('packages/config.json', 'w') as json_file:
                 json.dump(self.config, json_file)
         except Exception as err:
-            print('Unable to open file(s)!')
-            print('Full error message:')
+            print('Unable to compute the array!')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
             self.create_map.text = "Compute 2D Histogram"
 
     def callback_3_0(self, instance):
@@ -1828,9 +1830,10 @@ class MainApp(App):
             with open('packages/config.json', 'w') as json_file:
                 json.dump(self.config, json_file)
         except Exception as err:
-            print('Probably no data loaded!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
             self.create_plot.text = "Create 2D Histogram visualization"
 
     def callback_4_0(self, instance):
@@ -1984,9 +1987,10 @@ class MainApp(App):
             with open('packages/config.json', 'w') as json_file:
                 json.dump(self.config, json_file)
         except Exception as err:
-            print('Probably no data loaded!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
             self.create_cut_plot.text = "Slice 2D Histogram"
 
     def callback_5_0(self, instance):
@@ -2128,26 +2132,29 @@ class MainApp(App):
 
             self.create_cut_fit_plot.text = "Fit"
         except Exception as err:
-            print('Probably no data loaded!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
             self.create_cut_fit_plot.text = "Fit"
 
     def callback_save_map_dat(self, instance):
         try:
             self.batch.save_map_dat()
         except Exception as err:
-            print('Probably no data loaded!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
 
     def callback_save_cut_dat(self, instance):
         try:
             self.cut.save_cut_dat()
         except Exception as err:
-            print('Probably no data loaded!')
-            print('Full error message:')
+            print('Error message:')
             print(err)
+            print('Traceback:')
+            print(extract_tb(exc_info()[-1]))
 
     def settings_popup_callback(self, instance):
         with open('packages/config.json', 'r') as json_file:
