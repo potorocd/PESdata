@@ -286,12 +286,24 @@ class create_batch_WESPE:
         Method for creating new array coordinate 'Delay relative t0'
         after specification of the delay stage value considered as time zero.
         '''
-        self.t0 = read_file_WESPE.rounding(t0, self.y_step)
-        y_label_a = self.Map_2D_plot.attrs['y_label_a']
-        y_label = self.Map_2D_plot.attrs['y_label']
-        image_data_y_a = self.t0 - self.Map_2D.coords[y_label].values
-        self.Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.Map_2D_plot.coords[y_label_a] = ('Dim_y', image_data_y_a)
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            self.t0 = read_file_WESPE.rounding(t0, getattr(self, f'{check}_step'))
+            label_a = self.Map_2D_plot.attrs[f'{check}_label_a']
+            label = self.Map_2D_plot.attrs[f'{check}_label']
+            image_data_a = self.t0 - self.Map_2D.coords[label].values
+            self.Map_2D.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.Map_2D_plot.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.set_T0()
+        except:
+            pass
         self.set_T0()
 
     def create_map(self):
@@ -397,20 +409,42 @@ class create_batch_WESPE:
         Method for switching visualization to 'Delay relative t0'
         coordinate of 'Dim_y' dimension.
         '''
-        if self.Map_2D_plot.attrs['y_alt'] is False:
-            coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs['y_label_a']]
-            self.Map_2D_plot.coords['Dim_y'] = coord
-            self.Map_2D_plot.attrs['y_alt'] = True
-
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = True
+        except:
+            pass
+            
     def set_Tds(self):
         '''
         Method for switching visualization to 'Delay stage values'
         coordinate of 'Dim_y' dimension.
         '''
-        if self.Map_2D_plot.attrs['y_alt'] is True:
-            coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs['y_label']]
-            self.Map_2D_plot.coords['Dim_y'] = coord
-            self.Map_2D_plot.attrs['y_alt'] = False
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is True:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = False
+        except:
+            pass
 
     def set_dif_map(self):
         '''
@@ -1605,13 +1639,66 @@ class read_file_WESPE:
         Method for creating new array coordinate 'Delay relative t0'
         after specification of the delay stage value considered as time zero.
         '''
-        self.t0 = read_file_WESPE.rounding(t0, self.y_step)
-        y_label_a = self.Map_2D_plot.attrs['y_label_a']
-        y_label = self.Map_2D_plot.attrs['y_label']
-        image_data_y_a = self.t0 - self.Map_2D.coords[y_label].values
-        self.Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.Map_2D_plot.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.set_T0()
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            self.t0 = read_file_WESPE.rounding(t0, getattr(self, f'{check}_step'))
+            label_a = self.Map_2D_plot.attrs[f'{check}_label_a']
+            label = self.Map_2D_plot.attrs[f'{check}_label']
+            image_data_a = self.t0 - self.Map_2D.coords[label].values
+            self.Map_2D.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.Map_2D_plot.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.set_T0()
+        except:
+            pass
+
+    def set_T0(self):
+        '''
+        Method for switching visualization to 'Delay relative t0'
+        coordinate of 'Dim_y' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = True
+        except:
+            pass
+
+    def set_Tds(self):
+        '''
+        Method for switching visualization to 'Delay stage values'
+        coordinate of 'Dim_y' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is True:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = False
+        except:
+            pass
 
     def create_dif_map(self):
         '''
@@ -1879,72 +1966,6 @@ class create_batch_MM(create_batch_WESPE):
         self.static_cut_list = static_cut_list
         short_info = [title, run_num, is_static_s, KE_s, mono_s]
         self.short_info = '\n'.join(short_info) + '\n\n'
-
-    def time_zero(self, t0=1328.2):
-        '''
-        Method for creating new array coordinate 'Delay relative t0'
-        after specification of the delay stage value considered as time zero.
-        '''
-        check = []
-        for i in ['x', 'y', 'z']:
-            try:
-                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
-                    check.append(i)
-            except:
-                pass
-        try:
-            check = check[0]
-            self.t0 = read_file_WESPE.rounding(t0, getattr(self, f'{check}_step'))
-            label_a = self.Map_2D_plot.attrs[f'{check}_label_a']
-            label = self.Map_2D_plot.attrs[f'{check}_label']
-            image_data_a = self.t0 - self.Map_2D.coords[label].values
-            self.Map_2D.coords[label_a] = (f'Dim_{check}', image_data_a)
-            self.Map_2D_plot.coords[label_a] = (f'Dim_{check}', image_data_a)
-            self.set_T0()
-        except:
-            pass
-        
-    def set_T0(self):
-        '''
-        Method for switching visualization to 'Delay relative t0'
-        coordinate of 'Dim_y' dimension.
-        '''
-        check = []
-        for i in ['x', 'y', 'z']:
-            try:
-                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
-                    check.append(i)
-            except:
-                pass
-        try:
-            check = check[0]
-            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
-                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
-                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
-                self.Map_2D_plot.attrs[f'{check}_alt'] = True
-        except:
-            pass
-            
-    def set_Tds(self):
-        '''
-        Method for switching visualization to 'Delay stage values'
-        coordinate of 'Dim_y' dimension.
-        '''
-        check = []
-        for i in ['x', 'y', 'z']:
-            try:
-                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
-                    check.append(i)
-            except:
-                pass
-        try:
-            check = check[0]
-            if self.Map_2D_plot.attrs[f'{check}_alt'] is True:
-                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label']]
-                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
-                self.Map_2D_plot.attrs[f'{check}_alt'] = False
-        except:
-            pass
 
     def set_KE(self):
         '''
@@ -2742,19 +2763,6 @@ class read_file_MM(create_batch_WESPE):
             end = timer()
             print(f'Run {self.run_num} done')
             print(f'Elapsed time: {round(end-start, 1)} s')
-
-    def time_zero(self, t0=1328.2):
-        '''
-        Method for creating new array coordinate 'Delay relative t0'
-        after specification of the delay stage value considered as time zero.
-        '''
-        self.t0 = read_file_WESPE.rounding(t0, self.y_step)
-        y_label_a = self.Map_2D_plot.attrs['y_label_a']
-        y_label = self.Map_2D_plot.attrs['y_label']
-        image_data_y_a = self.t0 - self.Map_2D.coords[y_label].values
-        self.Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.Map_2D_plot.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.set_T0()
 
     def create_dif_map(self):
         '''
