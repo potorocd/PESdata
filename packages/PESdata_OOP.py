@@ -2514,6 +2514,10 @@ class read_file_MM(create_batch_WESPE):
             except:
                 use_julia = False
                 print('***All-Python mode***')
+
+            if self.switch_3D is True and use_julia is False:
+                raise Exception('***For 3D histogramming, please set up Julia-enabled mode***')
+
             start = timer()
             '''
             This part is supposed to filter artifact values
@@ -5337,8 +5341,8 @@ if __name__ == "__main__":
         # i.Bunch_filter([0.4,0.9], B_type='x')
         # i.Bunch_filter([0.4,0.9], B_type='y')
         # i.Bunch_filter([4,4.27], B_type='t')
-        i.create_map(ordinate='xy', energy_step=0.001, delay_step=0.001, z_step=0.1,
-                     save='on')
+        i.create_map(ordinate='xyt', energy_step=0.001, delay_step=0.001, z_step=100,
+                     save='off')
     b.create_map()
     # b.time_zero(t0=3539.7)
     # b.save_map_dat()
