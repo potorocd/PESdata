@@ -434,10 +434,16 @@ class create_batch_WESPE:
             check = 'y_order_rec'
             if self.Map_2D_plot.attrs['y_alt'] is True:
                 check += '_a'
-            if self.Map_2D_plot.attrs[check] is False:
-                new_a = self.Map_2D_plot.loc[min_val:max_val]
+            if 'energy' in self.Map_2D_plot.attrs['y_label']:
+                if self.Map_2D_plot.attrs[check] is False:
+                    new_a = self.Map_2D_plot.loc[max_val:min_val]
+                else:
+                    new_a = self.Map_2D_plot.loc[min_val:max_val]
             else:
-                new_a = self.Map_2D_plot.loc[max_val:min_val]
+                if self.Map_2D_plot.attrs[check] is False:
+                    new_a = self.Map_2D_plot.loc[min_val:max_val]
+                else:
+                    new_a = self.Map_2D_plot.loc[max_val:min_val]
         if axis == 'Dim_x':
             check = 'x_order_rec'
             if self.Map_2D_plot.attrs['x_alt'] is True:
@@ -766,6 +772,9 @@ class create_batch_WESPE:
                 y_start = np.min(image_data_y)
                 y_end = np.max(image_data_y)
 
+            if 'energy' in self.Map_2D_plot.attrs['y_label']:
+                y_start, y_end = y_end, y_start
+
             extent = [x_start, x_end,
                       y_start, y_end]
 
@@ -780,7 +789,10 @@ class create_batch_WESPE:
                 
             if switch_3D is False:
                 vmin = np.min(image_data)
-                vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                try:
+                    vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                except:
+                    vmax = np.max(image_data)
                 self.map_z_tick = self.map_z_tick*config.map_scale
                 if vmin < 0:
                     vmin = vmin*config.map_scale
@@ -1051,7 +1063,7 @@ class create_batch_WESPE:
             axs.set_ylabel(f'{y_label} ({y_units})', labelpad=10,
                            fontsize=config.font_size_axis*0.8)
 
-            if self.Map_2D_plot.attrs['y_alt'] is True:
+            if self.Map_2D_plot.attrs['y_alt'] is True and self.Map_2D_plot.attrs['y_units'] == 'ps':
                 position = 0
                 if self.varied_y_step is True:
                     coord = self.Map_2D_plot.coords['Dim_y']
@@ -1873,13 +1885,142 @@ class create_batch_MM(create_batch_WESPE):
         Method for creating new array coordinate 'Delay relative t0'
         after specification of the delay stage value considered as time zero.
         '''
-        self.t0 = read_file_WESPE.rounding(t0, self.y_step)
-        y_label_a = self.Map_2D_plot.attrs['y_label_a']
-        y_label = self.Map_2D_plot.attrs['y_label']
-        image_data_y_a = self.t0 - self.Map_2D.coords[y_label].values
-        self.Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.Map_2D_plot.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        self.set_T0()
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            self.t0 = read_file_WESPE.rounding(t0, getattr(self, f'{check}_step'))
+            label_a = self.Map_2D_plot.attrs[f'{check}_label_a']
+            label = self.Map_2D_plot.attrs[f'{check}_label']
+            image_data_a = self.t0 - self.Map_2D.coords[label].values
+            self.Map_2D.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.Map_2D_plot.coords[label_a] = (f'Dim_{check}', image_data_a)
+            self.set_T0()
+        except:
+            pass
+        
+    def set_T0(self):
+        '''
+        Method for switching visualization to 'Delay relative t0'
+        coordinate of 'Dim_y' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = True
+        except:
+            pass
+            
+    def set_Tds(self):
+        '''
+        Method for switching visualization to 'Delay stage values'
+        coordinate of 'Dim_y' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is True:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = False
+        except:
+            pass
+
+    def set_KE(self):
+        '''
+        Method for switching visualization to 'Kinetic energy'
+        coordinate of 'Energy' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'eV':
+                    check.append(i)
+                elif 'energy' in self.Map_2D_plot.attrs[f'{i}_label']:
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is True:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = False
+        except:
+            pass
+            
+    def set_BE(self):
+        '''
+        Method for switching visualization to 'Binding energy'
+        coordinate of 'Energy' dimension.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'eV':
+                    check.append(i)
+                elif 'energy' in self.Map_2D_plot.attrs[f'{i}_label']:
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = True
+        except:
+            pass
+        
+    def norm_total_e(self):
+        '''
+        Method for normalization of delay-energy map in terms of the concept
+        that every time delay line should contain the same number of detected
+        electrons, i.e., we have only redistribution of electrons in the
+        energy domain.
+        '''
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'eV':
+                    check.append(i)
+                elif 'energy' in self.Map_2D_plot.attrs[f'{i}_label']:
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            arr = self.Map_2D_plot
+            attrs = self.Map_2D_plot.attrs
+    
+            norm = arr.sum(f'Dim_{check}', skipna=True)
+            new_arr = arr/norm * norm.mean()
+    
+            self.Map_2D_plot = new_arr
+            self.Map_2D_plot.attrs = attrs
+            self.Map_2D_plot.attrs['Normalized'] = True
+        except:
+            pass
 
     def create_map(self):
         '''
@@ -1927,8 +2068,12 @@ class create_batch_MM(create_batch_WESPE):
 
         self.Map_2D = total_map.fillna(0)
         self.Map_2D = self.Map_2D.where(self.Map_2D.coords[attrs['x_label']].notnull(), drop=True)
-        if np.median(np.gradient(self.Map_2D.coords[attrs['x_label_a']].values)) > 0:
-            self.Map_2D=self.Map_2D.isel(Dim_x=slice(None, None, -1))
+        try:
+            # BE must have negative step
+            if np.median(np.gradient(self.Map_2D.coords[attrs['x_label_a']].values)) > 0:
+                self.Map_2D = self.Map_2D.isel(Dim_x=slice(None, None, -1))
+        except:
+            pass
         self.Map_2D_plot = self.Map_2D
 
         self.varied_y_step = False
@@ -2254,8 +2399,6 @@ class read_file_MM(create_batch_WESPE):
                 Map_2D.coords["Dim_z"] = Map_2D.coords[z_label]
 
             Map_2D.name = data_name
-            BE = loaded_map.variables[x_label_a].values
-            Map_2D.coords[x_label_a] = ('Dim_x', BE)
 
             Map_2D.coords['Dim_x'] = Map_2D.coords[x_label]
             Map_2D.coords['Dim_y'] = Map_2D.coords[y_label]
@@ -2300,6 +2443,22 @@ class read_file_MM(create_batch_WESPE):
                                 'z_units_a': z_units_a,
                                 'z_order_rec_a': not z_order_rec,
                                 'z_alt': False}
+
+            try:
+                check = []
+                for i in ['x', 'y', 'z']:
+                    try:
+                        if Map_2D.attrs[f'{i}_units'] == 'eV':
+                            check.append(i)
+                        elif 'energy' in Map_2D.attrs[f'{i}_label']:
+                            check.append(i)
+                    except:
+                        pass
+                check = check[0]
+                BE = loaded_map.variables[Map_2D.attrs[f'{check}_label_a']].values
+                Map_2D.coords[Map_2D.attrs[f'{check}_label_a']] = (f'Dim_{check}', BE)
+            except:
+                pass
 
             self.Map_2D = Map_2D
             self.Map_2D_plot = self.Map_2D
@@ -2454,8 +2613,15 @@ class read_file_MM(create_batch_WESPE):
             if ordinate[0] == 't':
                 image_data_x_a = image_data_x
                 image_data_x = 100 - image_data_x
-            else:
-                image_data_x_a = 100 - image_data_x
+            elif ordinate[1] == 't':
+                image_data_y_a = image_data_y
+                image_data_y = 100 - image_data_y
+            try:
+                if ordinate[2] == 't':
+                    image_data_z_a = image_data_z
+                    image_data_z = 100 - image_data_z
+            except:
+                pass
 
             # finding onset position
             # y = np.abs(np.gradient(np.sum(image_data, axis=0)))
@@ -2510,6 +2676,10 @@ class read_file_MM(create_batch_WESPE):
                 pass
             try:
                 Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
+            except:
+                pass
+            try:
+                Map_2D.coords[z_label_a] = ('Dim_z', image_data_z_a)
             except:
                 pass
             if self.switch_3D is False:
@@ -5151,25 +5321,31 @@ if __name__ == "__main__":
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
-    run_numbers = ['run_50032_50033_50041_50042_50044_50053']
+    # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
-        i.Bunch_filter([0.4,0.9], B_type='x')
-        i.Bunch_filter([0.4,0.9], B_type='y')
-        i.Bunch_filter([4,4.27], B_type='t')
-        i.create_map(ordinate='td', energy_step=0.005, delay_step=0.005, z_step=0.1,
+        # i.Bunch_filter([0.4,0.9], B_type='x')
+        # i.Bunch_filter([0.4,0.9], B_type='y')
+        # i.Bunch_filter([4,4.27], B_type='t')
+        i.create_map(ordinate='xy', energy_step=0.001, delay_step=0.001, z_step=0.1,
                      save='on')
     b.create_map()
+    # b.time_zero(t0=3539.7)
     # b.save_map_dat()
     # b.norm_total_e()
+    # b.set_Tds()
     # b.set_BE()
+    # b.set_KE()
+    # b.set_BE()
+    # b.set_T0()
+    # b.set_KE()
     # c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
     # c.correlate_i()
-    # b.ROI([0.4,0.85], axis='Dim_x', mod_map=True)
-    # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    plot_files([b], dif_3D=True)
+    b.ROI([0.4,0.9], axis='Dim_x', mod_map=True)
+    b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
+    plot_files([b], dif_3D=False)
 else:
     # Loading configs from json file.
     try:
