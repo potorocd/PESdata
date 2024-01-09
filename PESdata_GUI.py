@@ -1098,13 +1098,13 @@ class MainApp(App):
             self.i5.bind(on_press=self.callback_i5)
             self.k2.bind(on_press=self.callback_k2)
         elif config.file_type == 'ALS':
-            self.e1.text = "Load parameters"
+            self.e1.text = "Processor arguments"
             self.e2.text = 'DLD bins'
             self.e3.text = '1500'
-            self.e4.text = 'a.u.'
-            self.e5.text = 'Plot bunch'
+            self.e4.text = 'u.'
+            self.e5.text = 'Bunch selection'
             self.e6.text = '4'
-            self.e7.text = 'a.u.'
+            self.e7.text = 'u.'
 
             self.i1.text = "Delay/Energy ROI"
             self.i2.text = 'Energy: OFF'
@@ -1350,13 +1350,13 @@ class MainApp(App):
                             self.window.add_widget(i)
                     elif file_type == 'ALS':
                         from packages.PESdata_OOP import create_batch_ALS as create_batch
-                        self.e1.text = "Load parameters"
+                        self.e1.text = "Processor arguments"
                         self.e2.text = 'DLD bins'
                         self.e3.text = '1500'
-                        self.e4.text = 'a.u.'
-                        self.e5.text = 'Plot bunch'
+                        self.e4.text = 'u.'
+                        self.e5.text = 'Bunch selection'
                         self.e6.text = '4'
-                        self.e7.text = 'a.u.'
+                        self.e7.text = 'u.'
 
                         self.i1.text = "Delay/Energy ROI"
                         self.i2.text = 'Energy: OFF'
@@ -1647,7 +1647,7 @@ class MainApp(App):
             t0 = float(self.d3.text)
 
             # Input for ALS
-            # Plot bunch
+            # Bunch selection
             try:
                 bunch_sel = int(self.e6.text)
             except ValueError:
@@ -2881,11 +2881,11 @@ class MainApp(App):
             self.i5.bind(on_press=self.callback_i5)
             self.k2.bind(on_press=self.callback_k2)
         elif config.file_type == 'ALS':
-            self.e1.text = "Load parameters"
+            self.e1.text = "Processor arguments"
             self.e2.text = 'DLD bins'
-            self.e4.text = 'a.u.'
-            self.e5.text = 'Plot bunch'
-            self.e7.text = 'a.u.'
+            self.e4.text = 'u.'
+            self.e5.text = 'Bunch selection'
+            self.e7.text = 'u.'
 
             self.i1.text = "Delay/Energy ROI"
             self.i2.text = 'Energy: OFF'

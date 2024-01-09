@@ -17,7 +17,7 @@ Graphical user interface for processing and visualization of multidimensional ph
 This program is developed, first of all, for convenient manipulation of data measured at large-scale facilities, which can not be handled with conventional data analysis software and requires the use of programming. Thus, PESdata makes it accessible to a larger community of scientists working on photoemission-based experiments. The graphical user interface is developed using an open-source, cross-platform Python framework [Kivy](https://kivy.org/). The application works based on a number of Python objects designed for reading out, filtering, histograming, selecting, and combining input data of different shapes but resulting in the generation of labeled data arrays of the same structure stored as [Xarray](https://xarray.dev/) DataArray objects. Thus, the same visualization approach based on the [Matplotlib](https://matplotlib.org/) library is used for various data. Besides, DataArray objects can be saved as [netCDF files](https://docs.xarray.dev/en/stable/user-guide/io.html), which allows for avoiding repeated processing of the same datasets and storing and sharing condensed preprocessed data. Currently, the following modules are available and under development:
 - **[WESPE module]** Time-resolved XPS data measured with two time-of-flight analyzers of [WESPE endstation](https://uniexp.desy.de/e47432/e297712/e306033/) at the [PG2 beamline](https://photon-science.desy.de/facilities/flash/beamlines/pg_beamlines_flash1/index_eng.html) of [FLASH](https://flash.desy.de/) free-electron laser (Hamburg, Germany)
 - **[ALS module]** Time-resolved XPS data measured with a hemispherical analyzer of ambient-pressure photoemission spectroscopy setup at the [11.0.2 beamline](https://als.lbl.gov/beamlines/11-0-2/) of the [Advanced Light Source](https://als.lbl.gov/about/about-the-als/) synchrotron (Berkeley, USA)
-- **[Momentum Microscope module]** Time-resolved XPS, ARPES, and XPD data measured with a momentum microscope of the [HEXTOF endstation](https://photon-science.desy.de/news__events/news__highlights/archive/archive_of_2020/hextof_at_flash___merging_time_resolved_photoemission_techniques_into_a_new_instrument/index_eng.html) at the [PG2 beamline](https://photon-science.desy.de/facilities/flash/beamlines/pg_beamlines_flash1/index_eng.html) of [FLASH](https://flash.desy.de/) free-electron laser (Hamburg, Germany) and the [TR-XPES endstation]( https://www.xfel.eu/facility/instruments/sxp/instrument/index_eng.html) of [SXP instrument]( https://www.xfel.eu/facility/instruments/sxp/index_eng.html) at the SASE3 beamline of [European XFEL](https://www.xfel.eu/) free-electron laser (Hamburg, Germany) **[early access]**
+- **[Momentum Microscope module]** Time-resolved XPS, ARPES, and XPD data measured with a momentum microscope of the [HEXTOF endstation](https://photon-science.desy.de/news__events/news__highlights/archive/archive_of_2020/hextof_at_flash___merging_time_resolved_photoemission_techniques_into_a_new_instrument/index_eng.html) at the [PG2 beamline](https://photon-science.desy.de/facilities/flash/beamlines/pg_beamlines_flash1/index_eng.html) of [FLASH](https://flash.desy.de/) free-electron laser (Hamburg, Germany) and the [TR-XPES endstation]( https://www.xfel.eu/facility/instruments/sxp/instrument/index_eng.html) of [SXP instrument]( https://www.xfel.eu/facility/instruments/sxp/index_eng.html) at the SASE3 beamline of [European XFEL](https://www.xfel.eu/) free-electron laser (Hamburg, Germany)
 - **[Igor Binary Wave module]** Angle-resolved photoemission spectroscopy (ARPES) data in Igor Binary Wave format (.ibw), measured at beamlines of various synchrotrons as [BESSY II](https://www.helmholtz.de/forschung/forschungsinfrastrukturen/lichtquellen/bessy-ii/) (Berlin, Germany) and [PETRA III](https://www.desy.de/research/facilities__projects/petra_iii/index_eng.html) (Hamburg, Germany) **[early access]**
 - **[Casa XPS module]** Static 2D XPS data (xy curves) stacked to 3D data with labels specified by a user (e.g., plotting energy dispersive curve as a function of deposition/etching time, the temperature of annealing) **[early access]**
 
@@ -35,7 +35,7 @@ pip install lmfit
 ```python
 pip install fastparquet
 ```
-4) [PyJulia](https://pypi.org/project/julia/) (optional for the ALS and Momentum Microscope modules, needed to speed up large dataset processing).
+4) [PyJulia](https://pypi.org/project/julia/) (optional for the ALS module and 2D view of the Momentum Microscope module to speed up large dataset processing, obligatory for more computationally demanding 3D view of the Momentum Microscope module).
 ```python
 pip install julia
 ```
@@ -46,11 +46,11 @@ conda install *package* -c conda-forge
 ## How to use
 The main window includes four sections followed by green execution buttons:
 1. Upload runs
-2. Compute 2D Histogram
-3. Create 2D Histogram visualization
-4. Slice 2D Histogram
+2. Compute histogram
+3. Create visualization
+4. Make slices
 
-The first two sections vary slightly depending on the data input. The switch of GUI happens on the press of the 'Upload runs' button since a check of the 'File directory' folder content is performed. In the picture below, Section I of the WESPE data module (left panel) contains a switch between two available TOF analyzers (DLD4Q or DLD1Q). In contrast, for other modules, it is absent (right panel). In Section II, inputs partially overlap and differ partly because of different data structures.
+The first two sections vary slightly depending on the data input. The switch of GUI happens on the press of the 'Upload runs' button since a check of the 'File directory' folder content is performed. In the picture below, Section I of the WESPE data module (left panel) contains a switch between two available TOF analyzers (DLD4Q or DLD1Q). In contrast, for other modules, it is absent. In Section II, inputs partially overlap and differ partly because of different data structures.
 
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Main_menu.png" alt="Main menu"/>
@@ -86,16 +86,16 @@ The ‘Upload runs’ button reads out data from the specified runs and creates 
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Upload_runs.png" alt="Upload runs"/>
 </p>
 
-### Section II - Compute 2D Histogram (computationally demanding part)
-This section serves for the generation of a labeled 2D array using data uploaded in **Section I**, which can be represented as a false-color plot in **Section III**. In the case of tr-XPS data, the y-axis corresponds to the time domain, and the x-axis corresponds to the electron energy domain.
+### Section II - Compute histogram (computationally demanding part)
+This section serves for the generation of a labeled 2D or 3D array using data uploaded in **Section I**, which can be represented as a false-color plot in **Section III**. In the case of tr-XPS data, the y-axis corresponds to the time domain, and the x-axis corresponds to the electron energy domain. The Momentum Microscope module provides the freedom to put any dimension on any axis.
 
-For tr-XPS data, the x-axis is described with two coordinates: 1) Kinetic energy – values taken from data files; 2) Binding energy calculated as ‘mono value – Kinetic energy - 4.5 (work function of spectrometer)’. The y-axis is described with one coordinate as default: ‘Delay stage values’/’Phase shifter values’ taken from data files. In the WESPE module, for static runs (no delay stage value data included in files), all electrons are assigned to delay stage values equal to the run number in ps. When T0 in **Section II** is ‘on’, the second coordinate called ‘Delay relative t0’ is created. The values are calculated as ‘time zero – delay stage values/phase shifter values’.
+For tr-XPS data, the x-axis is described with two coordinates: 1) Kinetic energy – values taken from data files; 2) Binding energy calculated as ‘mono value – Kinetic energy - work function of the spectrometer (4.5 eV as default for the WESPE module)’. The y-axis is described with one coordinate as default: ‘Delay stage values’/’Phase shifter values’ taken from data files. In the WESPE module, for static runs (no delay stage value data included in files), all electrons are assigned to delay stage values equal to the run number in ps. When T0 in **Section II** is ‘on’, the second coordinate called ‘Delay relative t0’ is created. The values are calculated as ‘time zero – delay stage values/phase shifter values’.
 
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Main_menu_II.png" alt="Main menu II"/>
 </p>
 
-#### Delay-energy map parameters
+#### Histogram parameters
 ***T0: ON/OFF*** – when the switch is on, the ‘Delay relative t0’ coordinate is created
 
 ***Kinetic energy/Binding energy*** – toggle determining energy coordinate for the first delay-energy map visualization; besides, it determines what energy coordinates are used for combining several individual runs (Binding energy coordinate is compensated for mono value change)
@@ -103,21 +103,45 @@ For tr-XPS data, the x-axis is described with two coordinates: 1) Kinetic energy
 ***Energy step*** or ***Dim X step*** – determines binning in the energy domain (x-axis)
 
 ***Time step*** or ***Dim Y step*** – determines binning in the time domain (y-axis)
-#### Bunch filtering [WESPE and Momentum Microscope modules]
+
+***Dim Z step*** – determines binning for the z-axis; the processor considers values larger or equal to 100 as a command to automatically determine the z-step resulting in the corresponding number of slices along the z-axis (i.e., '10' would request absolute step of 10, '110' would request 110 slices) **[only for the Momentum Microscope module]**
+
+*Note: for the Momentum Microscope module, x/y/t values from DLD are divided by 1000. Otherwise, large values do not fit as tick labels. Therefore, to bin to every single pixel/TOF arb. unit, one needs to set 0.001 instead of 1 as a step.*
+#### Filtering [WESPE and Momentum Microscope modules]
+These filters allow the exclusion of electrons from input data not satisfying specific conditions before histogramming.
+
 ***MacroB: ON/OFF*** – switch determining if MacroBunch ID filter is applied
 
 Limits in % are specified as two values separated by coma
 
-***MicroB: ON/OFF*** – switch determining if MicroBunch ID filter is applied
+***Custom: ON/OFF*** – switch determining if Custom filter is applied
 
-Limits in units are specified as two values separated by coma
-#### Load parameters **[ALS module]**
+Set custom filter boundaries for various dimensions by specifying the following arguments separated with a comma:
+```conda
+dimension_key,boundary1,boundary2
+```
+Semicolon separates different requests for filtering. E.g.:
+```conda
+x,0.4,0.9;y,0.4,0.9;t,4.46,4.48
+```
+This entry would filter X-Pixel from 0.4 to 0.9 (400 to 900 actual pixels), Y-pixel from 0.4 to 0.9 (400 to 900 actual pixels), and TOF from 4.46 to 4.48 (4460 to 4480 TOF arb. units).
+The following dimension keys are currently available:
+```conda
+x - X pixel
+y - Y pixel
+t - Time-of-flight for MM/Kinetic energy for WESPE
+d - delay stage position
+b - Micro Bunch ID
+mono - monochromator values
+bam - beam arrival monitor values
+```
+#### Processor arguments **[ALS module]**
 ***DLD bins*** – the approximate number of bins for creating a 2D histogram (energy channels vs. DLD time) for every single h5 file recorded at a specific phase shifter value. The larger the number – the higher the DLD time resolution, but the slower the processing. Experimentally, it was determined that approximately 1500 bins are sufficient for multi-bunch data to extract camshaft bunches out of the dataset. In the case of two-bunch data, the number of bins is determined as this coefficient divided by 10 (e.g., as default 1500/10 = 150).
 
-***Plot bunch*** – select a bunch number or a slice of bunches (start and end bunches separated with coma), which is used for visualization. A specific bunch is usually used to select the pumped bunch, synchronized with the optical pump, a slice of bunches – for summing up all available bunches in case of measuring reference laser-off data for energy scale or transmission calibration.
+***Bunch selection*** – select a bunch number or a slice of bunches (start and end bunches separated with coma), which is used for visualization. A specific bunch is usually used to select the pumped bunch, synchronized with the optical pump, a slice of bunches – for summing up all available bunches in case of measuring reference laser-off data for energy scale or transmission calibration.
 #### Modes [WESPE, ALS, Momentum Microscope modules]
 **[WESPE and ALS modules]:** ***‘Time delay’/’MicroBunch’*** – switch to an alternative mode that creates a 2D labeled array, where MicroBunch ID/Bunch ID serves as the y-axis label instead of Time delay. It can be used for comparison of pumped and unpumped data.
-**[Momentum Microscope module]:** ***Select dims*** – input field which allows the user to define, what sources will be used for the 2D histogram computation. The user needs to put two key letters in this field. The first letter stands for the X dimension, the second letter stands for the Y dimension. Currently, the following options are available (key - source):
+**[Momentum Microscope module]:** ***Select dims*** – input field that allows the user to define the sources for the 2D/3D histogram computation. The user needs to put two/three key letters in this field for 2D/3D view (3D view requires setting up the Julie-enabled mode). The first letter stands for the X dimension, the second for the Y dimension, and the third for the Z dimension. A false-color plot will represent the XY plane, whereas the Z dimension will be bound to a manually adjusted slider. Slider position change leads to an update of the XY slice. Currently, the following options are available (key - source):
 ```conda
 x - X pixel
 y - Y pixel
@@ -125,14 +149,15 @@ t - Time-of-flight
 d - delay stage position
 b - Micro Bunch ID
 ```
-'td' is the default, which means that the Time-of-flight will be on the X-axis, and the delay stage position will be on the Y-axis. In other words, this is tr-XPS mode.
+**'td'** is the default, which means that the Time-of-flight will be on the X-axis, and the delay stage position will be on the Y-axis. In other words, this is tr-XPS mode.
+**'xyt'** is recommended for finding the Fermi surface since it allows one to examine the kx/ky plane at various TOF (Kinetic energy) values. Then, applying the Custom filer allows the filtering out of TOF values above and below the Fermi surface (e.g., 't,4.46,4.48'). Thus, after the filtering, **'xyd'** would demonstrate the Fermi surface as a function of pump-probe delay.
 
-### Section III - Create 2D Histogram visualization
+### Section III - Create visualization
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Main_menu_III.png" alt="Main menu III"/>
 </p>
 
-This section serves for the instant generation of delay-energy map visualizations using the 2D labeled array generated in **Section II**.
+This section serves for the instant generation of visualizations using the 2D/3D labeled array generated in **Section II**.
 
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Map_example.png" alt="Map example" width="600"/>
@@ -141,7 +166,7 @@ This section serves for the instant generation of delay-energy map visualization
 #### Plot parameters
 ***T0: ON/OFF*** – switch between ‘Delay stage values’/’Phase shifter values’ and ‘Delay relative t0’ coordinates in the time domain
 
-***Dif map: ON/OFF*** – switch to the difference map plot where the averaged energy dispersive curve before -0.25 ps is subtracted from the whole array row by row. It helps to emphasize minor variations of intensity as a function of time delay.
+***Difference plot: ON/OFF*** – switch to the difference map plot where the averaged energy dispersive curve before -0.25 ps is subtracted from the whole array row by row. It helps to emphasize minor variations of intensity as a function of time delay. It also works for 3D view by showing the difference between X/Y slices selected by two ranged sliders bound to the Z axis.
 
 ***Kinetic energy/Binding energy*** – toggle to select the coordinate for the energy axis
 
@@ -151,7 +176,7 @@ This section serves for the instant generation of delay-energy map visualization
 ***Delay: ON/OFF*** or ***Dim Y: ON/OFF***  – when on, the cutoff for the time axis (y-axis) is activated, where limits are determined by two values separated by coma
 
 #### Normalizing
-***Total electrons: ON/OFF*** – switch on normalization to compensate for different acquisition times for every specific time delay. Every energy dispersive curve is normalized to the total sum of electrons within the whole energy window.
+***Electrons per dim: ON/OFF*** – switch on normalization to compensate for different acquisition times for every specific time delay. Every energy dispersive curve is normalized to the total sum of electrons within the whole energy window.
 
 ***[0,1]: ON/OFF*** – normalization of every energy dispersive curve to [0,1] as [min, max].
 
@@ -161,19 +186,19 @@ This section serves for the instant generation of delay-energy map visualization
 
 ***Save ASCII*** – it saves the whole delay energy map from the current visualization to ‘FileDir/ASCII_output/Maps/DateTime’. Every time delay value is saved as a separate .dat file and contains the corresponding energy dispersive curve.
 
-### Section IV - Slice 2D Histogram
+### Section IV - Make slices
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Main_menu_IV.png" alt="Main menu IV"/>
 </p>
 
-This section serves for the instant generation of 1D slices of the 2D delay-energy maps created in **Section III** either in the time or energy domain.
+This section allows making of 1D slices out of the last visualization state of the 2D labeled array created in **Section III**. Changing the toggle state leads to switching between the Y and X axes. In the case of the 3D view, it slices the last state of the false-color plot from **Section III** (last Dim Z slider position).
 
 <p align="center">
     <img align="middle" src="https://github.com/potorocd/PESdata/blob/main/packages/readme/Slice_example.png" alt="Slice example" width="600"/>
 </p>
 
 #### Slice mode
-***Time axis/Energy axis*** – switch between slices across the y- or x-axis
+***Time axis/Energy axis*** or ***Dim Y/Dim X*** – switch between slices across the y- or x-axis
 
 ***Waterfall: ON/OFF*** – ‘on’ selection introduces y offset between curves to avoid overlapping
 
@@ -181,14 +206,14 @@ This section serves for the instant generation of 1D slices of the 2D delay-ener
 
 ***Legend: ON/OFF*** – show or hide the legend of the slice plot
 
-#### Slice parameters
-***Position*** – specification of the slice positions separated with commas; ‘Main’ instead of a number automatically finds the position of the most intense feature; ‘SB, hv’ will determine the sideband position by the addition of ‘hv’ to the position of the most intense feature; keywords 'cci', 'cc', 'ccp', 'cct' can be specified here for performing cross-correlation
+#### Parameters
+***Position*** – specification of the slice positions separated with commas; **‘Main’** instead of a number automatically finds the position of the most intense feature; **‘SB, hv’** will determine the sideband position by the addition of ‘hv’ to the position of the most intense feature; keywords **'cci', 'cc', 'ccp', 'cct'** can be specified here for performing cross-correlation
 
 ***Width*** – specification of slice widths separated with commas; if one value is specified, it will be applied to every slice
 
 ***Difference: ON/OFF*** – ‘on’ selection adds additional curves to the plot calculated as a difference of every curve starting from the second one and the first one
 
-#### Data treatment
+#### Processing
 ***Norm [0,1]: ON/OFF*** – ‘on’ selection normalizes the curves to [0,1] as [min, max]
 
 ***Norm [-1,1]: ON/OFF*** – ‘on’ selection normalizes the curves to the maximal value between abs(min) and abs(max).
