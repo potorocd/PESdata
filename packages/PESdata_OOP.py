@@ -1178,6 +1178,19 @@ class read_file_WESPE:
         '''
         Object initialization where reading out of data from hdf5 files occurs.
         '''
+        self.unit_dict = {'x': ['X Pixel', 'Alt X Pixel', 'arb. units', 'x'],
+                          'y': ['Y Pixel', 'Alt Y Pixel', 'arb. units', 'y'],
+                          't': ['Kinetic energy', 'Binding energy',
+                                'eV', 'DLD_energy'],
+                          'd': ['Delay stage values', 'Delay',
+                                'ps', 'DLD_delay'],
+                          'b': ['MicroBunch ID', 'Alt MicroBunch ID',
+                                'units', 'MB_ID'],
+                          'bam': ['BAM', 'Alt BAM',
+                                  'arb. units', 'MB_ID'],
+                          'mono': ['Mono', 'Alt Mono',
+                                   'eV', 'mono']
+                          }
         try:
             self.run_num = file_full.split(os.sep)[-1].replace('_energy.mat', '')
             if self.run_num[-1] == 's':
@@ -1222,6 +1235,14 @@ class read_file_WESPE:
                 self.mono = f.get(f'{self.hdf5_path}/mono')[0]
             except TypeError:
                 self.mono = 0
+            try:
+                self.x = f.get(f'{self.hdf5_path}/x')[0]
+            except TypeError:
+                self.x = 0
+            try:
+                self.y = f.get(f'{self.hdf5_path}/y')[0]
+            except TypeError:
+                self.y = 0
             self.B_ID = f.get(f'{self.hdf5_path}/bunchID')[0]
             self.MB_ID = f.get(f'{self.hdf5_path}/microbunchID')[0]
             try:
@@ -1286,6 +1307,14 @@ class read_file_WESPE:
                 self.GMD = f['GMDBDA_Electrons'].values
             except TypeError:
                 self.GMD = 0
+            try:
+                self.x = f['x'].values
+            except TypeError:
+                self.x = 0
+            try:
+                self.y = f['y'].values
+            except TypeError:
+                self.y = 0
             try:
                 self.mono = f['mono'].values
             except TypeError:
@@ -1378,28 +1407,43 @@ class read_file_WESPE:
             B_max = np.min(self.B_ID_const)+(self.B_num)*max(B_range)/100
             min_list = np.where(self.B_ID < B_min)
             max_list = np.where(self.B_ID > B_max)
-            print('Result of MacroBunch filtering:')
             self.Macro_B_filter = f'{int(B_min)}-{int(B_max)}_Macro_B'
-        elif B_type == 'MicroBunch':
+        else:
             B_min = min(B_range)
             B_max = max(B_range)
-            min_list = np.where(self.MB_ID < B_min)
-            max_list = np.where(self.MB_ID > B_max)
-            print('Result of MicroBunch filtering:')
-            self.Micro_B_filter = f'{int(B_min)}-{int(B_max)}_Micro_B'
+            if B_type == 'MicroBunch':
+                min_list = np.where(self.MB_ID < B_min)
+                max_list = np.where(self.MB_ID > B_max)
+                self.Micro_B_filter = f'{int(B_min)}-{int(B_max)}_Micro_B'
+            else:
+                attr = getattr(self, self.unit_dict[B_type][3])
+                min_list = np.where(attr < B_min)
+                max_list = np.where(attr > B_max)
+                if self.Micro_B_filter == 'All_Dims':
+                    self.Micro_B_filter = f'{B_min}-{B_max}_{B_type}'
+                else:
+                    if f'{B_min}-{B_max}_{B_type}' not in self.Micro_B_filter:
+                        self.Micro_B_filter += f'_{B_min}-{B_max}_{B_type}'
         del_list = np.append(min_list, max_list)
+        print(f'Result of \'{B_type}\' dimension filtering:')
         print(f'{len(del_list)} electrons removed from Run {self.run_num}')
         if del_list.size != 0:
             self.DLD_energy = np.delete(self.DLD_energy, del_list)
             self.DLD_delay = np.delete(self.DLD_delay, del_list)
-            self.BAM = np.delete(self.BAM, del_list)
+            if isinstance(self.x, int) is False:
+                self.x = np.delete(self.x, del_list)
+            if isinstance(self.y, int) is False:
+                self.y = np.delete(self.y, del_list)
+            if isinstance(self.BAM, int) is False:
+                self.BAM = np.delete(self.BAM, del_list)
             if isinstance(self.GMD, int) is False:
                 self.GMD = np.delete(self.GMD, del_list)
             if isinstance(self.mono, int) is False:
                 self.mono = np.delete(self.mono, del_list)
             self.B_ID = np.delete(self.B_ID, del_list)
             self.MB_ID = np.delete(self.MB_ID, del_list)
-            self.diode = np.delete(self.diode, del_list)
+            if isinstance(self.diode, int) is False:
+                self.diode = np.delete(self.diode, del_list)
 
     def create_map(self, energy_step=0.05, delay_step=0.1,
                    ordinate='delay', save='on'):
@@ -2128,7 +2172,11 @@ class read_file_MM(create_batch_WESPE):
                           'd': ['Delay stage values', 'Delay',
                                 'ps', 'DLD_delay'],
                           'b': ['MicroBunch ID', 'Alt MicroBunch ID',
-                                'units', 'MB_ID']
+                                'units', 'MB_ID'],
+                          'bam': ['BAM', 'Alt BAM',
+                                  'arb. units', 'MB_ID'],
+                          'mono': ['Mono', 'Alt Mono',
+                                   'eV', 'mono']
                           }
 
         self.file_full = file_full

@@ -295,7 +295,7 @@ class MainApp(App):
         '''
         # label
         d1 = Label(
-                    text="2D Histogram\nparameters",
+                    text="Histogram parameters",
                     font_size=config.kivy_font_size_title,
                     color=config.kivy_color_title,
                     bold=True,
@@ -466,7 +466,7 @@ class MainApp(App):
         '''
         # label
         f1 = Label(
-                    text="Bunch filtering",
+                    text="Filtering",
                     font_size=config.kivy_font_size_title,
                     color=config.kivy_color_title,
                     bold=True,
@@ -500,7 +500,7 @@ class MainApp(App):
                    halign='center'
                    )
         # MicroB toggle
-        self.f5 = ToggleButton(text='MicroB: OFF',
+        self.f5 = ToggleButton(text='Custom: OFF',
                                state='normal',
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
@@ -509,7 +509,7 @@ class MainApp(App):
                                )
         self.f5.bind(on_press=self.callback_f5)
         # MicroB input
-        self.f6 = TextInput(text='0,400',
+        self.f6 = TextInput(text='b,0,400',
                             multiline=False,
                             pos_hint={"center_x": 0.5, "center_y": 0.5},
                             size_hint=(0.15, 0.7),
@@ -533,7 +533,7 @@ class MainApp(App):
         self.box6.add_widget(self.f6)
         self.box6.add_widget(f7)
         '''CREATE MAP BUTTON'''
-        self.create_map = Button(text="Compute 2D Histogram",
+        self.create_map = Button(text="Compute histogram",
                                  bold=True,
                                  background_color=config.kivy_color_button,
                                  font_name=config.kivy_font,
@@ -613,8 +613,8 @@ class MainApp(App):
                                size_hint=(0.2, 1)
                                )
         self.h2.bind(on_press=self.callback_h2)
-        # Dif map toggle
-        self.h3 = ToggleButton(text='Dif map: OFF',
+        # Difference plot toggle
+        self.h3 = ToggleButton(text='Difference plot: OFF',
                                state='normal',
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
@@ -735,9 +735,11 @@ class MainApp(App):
         # Total electrons norm
         if config.file_type in ['MM']:
             t_e_n_state = 'normal'
+            t_e_n_text = 'Electrons per dim: OFF'
         else:
             t_e_n_state = 'down'
-        self.j2 = ToggleButton(text='Total electrons: ON',
+            t_e_n_text = 'Electrons per dim: ON'
+        self.j2 = ToggleButton(text=t_e_n_text,
                                state=t_e_n_state,
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
@@ -771,7 +773,7 @@ class MainApp(App):
         self.box10.add_widget(self.j4)
 
         '''CREATE PLOT'''
-        self.create_plot = Button(text="Create 2D Histogram visualization",
+        self.create_plot = Button(text="Create visualization",
                                   bold=True,
                                   background_color=config.kivy_color_button,
                                   font_name=config.kivy_font,
@@ -874,7 +876,7 @@ class MainApp(App):
         '''
         # label
         l1 = Label(
-                    text="Slice parameters",
+                    text="Parameters",
                     font_size=config.kivy_font_size_title,
                     color=config.kivy_color_title,
                     bold=True,
@@ -898,14 +900,14 @@ class MainApp(App):
                             font_name=config.kivy_font,
                             font_size=config.kivy_font_size
                             )
-        l4 = Label(text='ps/eV',
-                   font_size=config.kivy_font_size_title,
-                   color=config.kivy_color_white,
-                   font_name=config.kivy_font,
-                   pos_hint={"center_x": 0.5, "center_y": 0.5},
-                   size_hint=(0.11, 1),
-                   halign='center'
-                   )
+        self.l4 = Label(text='ps/eV',
+                        font_size=config.kivy_font_size_title,
+                        color=config.kivy_color_white,
+                        font_name=config.kivy_font,
+                        pos_hint={"center_x": 0.5, "center_y": 0.5},
+                        size_hint=(0.11, 1),
+                        halign='center'
+                        )
         # T step label
         l5 = Label(text='Width',
                    font_size=config.kivy_font_size_title,
@@ -923,14 +925,14 @@ class MainApp(App):
                             font_name=config.kivy_font,
                             font_size=config.kivy_font_size
                             )
-        l7 = Label(text='ps/eV',
-                   font_size=config.kivy_font_size_title,
-                   color=config.kivy_color_white,
-                   font_name=config.kivy_font,
-                   pos_hint={"center_x": 0.5, "center_y": 0.5},
-                   size_hint=(0.12, 1),
-                   halign='center'
-                   )
+        self.l7 = Label(text='ps/eV',
+                        font_size=config.kivy_font_size_title,
+                        color=config.kivy_color_white,
+                        font_name=config.kivy_font,
+                        pos_hint={"center_x": 0.5, "center_y": 0.5},
+                        size_hint=(0.12, 1),
+                        halign='center'
+                        )
         # Add difference toggle
         self.k3 = ToggleButton(text='Difference: OFF',
                                state='normal',
@@ -945,10 +947,10 @@ class MainApp(App):
         self.box13.add_widget(l1)
         self.box13.add_widget(l2)
         self.box13.add_widget(self.l3)
-        self.box13.add_widget(l4)
+        self.box13.add_widget(self.l4)
         self.box13.add_widget(l5)
         self.box13.add_widget(self.l6)
-        self.box13.add_widget(l7)
+        self.box13.add_widget(self.l7)
         self.box13.add_widget(self.k3)
 
         '''
@@ -956,7 +958,7 @@ class MainApp(App):
         '''
         # label
         m1 = Label(
-                    text="Data treatment",
+                    text="Processing",
                     font_size=config.kivy_font_size_title,
                     color=config.kivy_color_title,
                     bold=True,
@@ -1023,7 +1025,7 @@ class MainApp(App):
         self.box14.add_widget(self.create_cut_fit_plot)
 
         '''CREATE PLOT'''
-        self.create_cut_plot = Button(text="Slice 2D Histogram",
+        self.create_cut_plot = Button(text="Make slices",
                                       bold=True,
                                       background_color=config.kivy_color_button,
                                       font_name=config.kivy_font,
@@ -1089,11 +1091,13 @@ class MainApp(App):
             self.i7.text = 'ps'
 
             self.k2.text = 'Time axis'
+            self.l4.text = 'ps/eV'
+            self.l7.text = 'ps/eV'
 
             self.i2.bind(on_press=self.callback_i2)
             self.i5.bind(on_press=self.callback_i5)
             self.k2.bind(on_press=self.callback_k2)
-        if config.file_type == 'ALS':
+        elif config.file_type == 'ALS':
             self.e1.text = "Load parameters"
             self.e2.text = 'DLD bins'
             self.e3.text = '1500'
@@ -1109,6 +1113,8 @@ class MainApp(App):
             self.i7.text = 'ps'
 
             self.k2.text = 'Time axis'
+            self.l4.text = 'ps/eV'
+            self.l7.text = 'ps/eV'
 
             self.i2.bind(on_press=self.callback_i2)
             self.i5.bind(on_press=self.callback_i5)
@@ -1129,6 +1135,8 @@ class MainApp(App):
             self.i7.text = 'a.u.'
 
             self.k2.text = 'Dim Y'
+            self.l4.text = 'a.u.'
+            self.l7.text = 'a.u.'
 
             self.i2.bind(on_press=self.callback_i2_a)
             self.i5.bind(on_press=self.callback_i5_a)
@@ -1149,6 +1157,8 @@ class MainApp(App):
             self.i7.text = 'a.u.'
 
             self.k2.text = 'Dim Y'
+            self.l4.text = 'a.u.'
+            self.l7.text = 'a.u.'
 
             self.i2.bind(on_press=self.callback_i2_a)
             self.i5.bind(on_press=self.callback_i5_a)
@@ -1255,6 +1265,8 @@ class MainApp(App):
                         self.i7.text = 'a.u.'
 
                         self.k2.text = 'Dim Y'
+                        self.l4.text = 'a.u.'
+                        self.l7.text = 'a.u.'
 
                         self.window.clear_widgets()
 
@@ -1299,6 +1311,8 @@ class MainApp(App):
                         self.i7.text = 'a.u.'
 
                         self.k2.text = 'Dim Y'
+                        self.l4.text = 'a.u.'
+                        self.l7.text = 'a.u.'
 
                         self.window.clear_widgets()
 
@@ -1351,6 +1365,8 @@ class MainApp(App):
                         self.i7.text = 'ps'
 
                         self.k2.text = 'Time axis'
+                        self.l4.text = 'ps/eV'
+                        self.l7.text = 'ps/eV'
 
                         self.window.clear_widgets()
 
@@ -1415,6 +1431,8 @@ class MainApp(App):
                         self.i7.text = 'a.u.'
 
                         self.k2.text = 'Dim Y'
+                        self.l4.text = 'a.u.'
+                        self.l7.text = 'a.u.'
 
                         self.window.clear_widgets()
 
@@ -1480,6 +1498,8 @@ class MainApp(App):
                         self.i7.text = 'ps'
 
                         self.k2.text = 'Time axis'
+                        self.l4.text = 'ps/eV'
+                        self.l7.text = 'ps/eV'
 
                         self.window.clear_widgets()
 
@@ -1605,7 +1625,7 @@ class MainApp(App):
 
             if self.f5.state == 'down':
                 for i in self.batch.batch_list:
-                    if config.file_type == 'MM':
+                    if config.file_type == 'MM' or config.file_type == 'WESPE':
                         dims = self.f6.text.split(';')
                         for j in dims:
                             i_vals = j.split(',')
@@ -1705,7 +1725,7 @@ class MainApp(App):
                            fig_height=self.fig_height)
             if config.matplotlib != 'qt':
                 plt.show()
-            self.create_map.text = "Compute 2D Histogram"
+            self.create_map.text = "Compute histogram"
 
             with open('packages/config.json', 'r') as json_file:
                 self.config = json.load(json_file)
@@ -1718,7 +1738,7 @@ class MainApp(App):
             print(err)
             print('Traceback:')
             print(extract_tb(exc_info()[-1]))
-            self.create_map.text = "Compute 2D Histogram"
+            self.create_map.text = "Compute histogram"
 
     def callback_3_0(self, instance):
         self.create_plot.text = 'Loading...'
@@ -1821,7 +1841,7 @@ class MainApp(App):
                 if config.matplotlib != 'qt':
                     plt.show()
 
-            self.create_plot.text = "Create 2D Histogram visualization"
+            self.create_plot.text = "Create visualization"
 
             with open('packages/config.json', 'r') as json_file:
                 self.config = json.load(json_file)
@@ -1834,7 +1854,7 @@ class MainApp(App):
             print(err)
             print('Traceback:')
             print(extract_tb(exc_info()[-1]))
-            self.create_plot.text = "Create 2D Histogram visualization"
+            self.create_plot.text = "Create visualization"
 
     def callback_4_0(self, instance):
         self.create_cut_plot.text = 'Loading...'
@@ -1978,7 +1998,7 @@ class MainApp(App):
                 if config.matplotlib != 'qt':
                     plt.show()
 
-            self.create_cut_plot.text = "Slice 2D Histogram"
+            self.create_cut_plot.text = "Make slices"
 
             with open('packages/config.json', 'r') as json_file:
                 self.config = json.load(json_file)
@@ -1991,7 +2011,7 @@ class MainApp(App):
             print(err)
             print('Traceback:')
             print(extract_tb(exc_info()[-1]))
-            self.create_cut_plot.text = "Slice 2D Histogram"
+            self.create_cut_plot.text = "Make slices"
 
     def callback_5_0(self, instance):
         self.create_cut_fit_plot.text = 'Loading...'
@@ -2208,7 +2228,7 @@ class MainApp(App):
                               font_name=config.kivy_font,
                               )
 
-        map_section = Label(text='2D Histogram parameters',
+        map_section = Label(text='Visualization parameters',
                             font_size=config.kivy_font_size_title*1.3,
                             color=config.kivy_color_title,
                             font_name=config.kivy_font,
@@ -2854,11 +2874,13 @@ class MainApp(App):
             self.i7.text = 'ps'
 
             self.k2.text = 'Time axis'
+            self.l4.text = 'ps/eV'
+            self.l7.text = 'ps/eV'
 
             self.i2.bind(on_press=self.callback_i2)
             self.i5.bind(on_press=self.callback_i5)
             self.k2.bind(on_press=self.callback_k2)
-        if config.file_type == 'ALS':
+        elif config.file_type == 'ALS':
             self.e1.text = "Load parameters"
             self.e2.text = 'DLD bins'
             self.e4.text = 'a.u.'
@@ -2872,6 +2894,8 @@ class MainApp(App):
             self.i7.text = 'ps'
 
             self.k2.text = 'Time axis'
+            self.l4.text = 'ps/eV'
+            self.l7.text = 'ps/eV'
 
             self.i2.bind(on_press=self.callback_i2)
             self.i5.bind(on_press=self.callback_i5)
@@ -2890,6 +2914,8 @@ class MainApp(App):
             self.i7.text = 'a.u.'
 
             self.k2.text = 'Dim Y'
+            self.l4.text = 'a.u.'
+            self.l7.text = 'a.u.'
 
             self.i2.bind(on_press=self.callback_i2_a)
             self.i5.bind(on_press=self.callback_i5_a)
@@ -2908,6 +2934,8 @@ class MainApp(App):
             self.i7.text = 'a.u.'
 
             self.k2.text = 'Dim Y'
+            self.l4.text = 'a.u.'
+            self.l7.text = 'a.u.'
 
             self.i2.bind(on_press=self.callback_i2_a)
             self.i5.bind(on_press=self.callback_i5_a)
@@ -3067,9 +3095,9 @@ class MainApp(App):
 
     def callback_f5(self, instance):
         if self.f5.state == 'down':
-            self.f5.text = 'MicroB: ON'
+            self.f5.text = 'Custom: ON'
         else:
-            self.f5.text = 'MicroB: OFF'
+            self.f5.text = 'Custom: OFF'
 
     def callback_h2(self, instance):
         if self.h2.state == 'down':
@@ -3079,9 +3107,9 @@ class MainApp(App):
 
     def callback_h3(self, instance):
         if self.h3.state == 'down':
-            self.h3.text = 'Dif map: ON'
+            self.h3.text = 'Difference plot: ON'
         else:
-            self.h3.text = 'Dif map: OFF'
+            self.h3.text = 'Difference plot: OFF'
 
     def callback_i2(self, instance):
         if self.i2.state == 'down':
@@ -3109,9 +3137,9 @@ class MainApp(App):
 
     def callback_j2(self, instance):
         if self.j2.state == 'down':
-            self.j2.text = 'Total electrons: ON'
+            self.j2.text = 'Electrons per dim: ON'
         else:
-            self.j2.text = 'Total electrons: OFF'
+            self.j2.text = 'Electrons per dim: OFF'
 
     def callback_j3(self, instance):
         if self.j3.state == 'down':
