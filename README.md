@@ -7,9 +7,9 @@ Graphical user interface for processing and visualization of multidimensional ph
 * [Installation](#installation)
 * [How to use](#how-to-use)
     + [Section I - Upload runs](#section-i---upload-runs)
-    + [Section II - Calculate delay-energy map (computationally demanding part)](#section-ii---calculate-delay-energy-map--computationally-demanding-part-)
-    + [Section III - Create delay-energy map visualization](#section-iii---create-delay-energy-map-visualization)
-    + [Section IV - Slice delay-energy map data](#section-iv---slice-delay-energy-map-data)
+    + [Section II - Compute histogram (computationally demanding part)](#section-ii---compute-histogram-computationally-demanding-part)
+    + [Section III - Create visualization](#section-iii---create-visualization)
+    + [Section IV - Make slices](#section-iv---make-slices)
 * [Special features](#special-features)
 * [Setting up Julia-enabled mode](#setting-up-julia-enabled-mode)
 
@@ -99,6 +99,7 @@ For tr-XPS data, the x-axis is described with two coordinates: 1) Kinetic energy
 ***T0: ON/OFF*** – when the switch is on, the ‘Delay relative t0’ coordinate is created
 
 ***Kinetic energy/Binding energy*** – toggle determining energy coordinate for the first delay-energy map visualization; besides, it determines what energy coordinates are used for combining several individual runs (Binding energy coordinate is compensated for mono value change)
+
 #### Binning [WESPE and Momentum Microscope modules]
 ***Energy step*** or ***Dim X step*** – determines binning in the energy domain (x-axis)
 
@@ -107,6 +108,7 @@ For tr-XPS data, the x-axis is described with two coordinates: 1) Kinetic energy
 ***Dim Z step*** – determines binning for the z-axis; the processor considers values larger or equal to 100 as a command to automatically determine the z-step resulting in the corresponding number of slices along the z-axis (i.e., '10' would request absolute step of 10, '110' would request 110 slices) **[only for the Momentum Microscope module]**
 
 *Note: for the Momentum Microscope module, x/y/t values from DLD are divided by 1000. Otherwise, large values do not fit as tick labels. Therefore, to bin to every single pixel/TOF arb. unit, one needs to set 0.001 instead of 1 as a step.*
+
 #### Filtering [WESPE and Momentum Microscope modules]
 These filters allow the exclusion of electrons from input data not satisfying specific conditions before histogramming.
 
@@ -135,12 +137,15 @@ b - Micro Bunch ID
 mono - monochromator values
 bam - beam arrival monitor values
 ```
+
 #### Processor arguments **[ALS module]**
 ***DLD bins*** – the approximate number of bins for creating a 2D histogram (energy channels vs. DLD time) for every single h5 file recorded at a specific phase shifter value. The larger the number – the higher the DLD time resolution, but the slower the processing. Experimentally, it was determined that approximately 1500 bins are sufficient for multi-bunch data to extract camshaft bunches out of the dataset. In the case of two-bunch data, the number of bins is determined as this coefficient divided by 10 (e.g., as default 1500/10 = 150).
 
 ***Bunch selection*** – select a bunch number or a slice of bunches (start and end bunches separated with coma), which is used for visualization. A specific bunch is usually used to select the pumped bunch, synchronized with the optical pump, a slice of bunches – for summing up all available bunches in case of measuring reference laser-off data for energy scale or transmission calibration.
+
 #### Modes [WESPE, ALS, Momentum Microscope modules]
 **[WESPE and ALS modules]:** ***‘Time delay’/’MicroBunch’*** – switch to an alternative mode that creates a 2D labeled array, where MicroBunch ID/Bunch ID serves as the y-axis label instead of Time delay. It can be used for comparison of pumped and unpumped data.
+
 **[Momentum Microscope module]:** ***Select dims*** – input field that allows the user to define the sources for the 2D/3D histogram computation. The user needs to put two/three key letters in this field for 2D/3D view (3D view requires setting up the Julie-enabled mode). The first letter stands for the X dimension, the second for the Y dimension, and the third for the Z dimension. A false-color plot will represent the XY plane, whereas the Z dimension will be bound to a manually adjusted slider. Slider position change leads to an update of the XY slice. Currently, the following options are available (key - source):
 ```conda
 x - X pixel
@@ -150,6 +155,7 @@ d - delay stage position
 b - Micro Bunch ID
 ```
 **'td'** is the default, which means that the Time-of-flight will be on the X-axis, and the delay stage position will be on the Y-axis. In other words, this is tr-XPS mode.
+
 **'xyt'** is recommended for finding the Fermi surface since it allows one to examine the kx/ky plane at various TOF (Kinetic energy) values. Then, applying the Custom filer allows the filtering out of TOF values above and below the Fermi surface (e.g., 't,4.46,4.48'). Thus, after the filtering, **'xyd'** would demonstrate the Fermi surface as a function of pump-probe delay.
 
 ### Section III - Create visualization
