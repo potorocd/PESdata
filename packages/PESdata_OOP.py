@@ -2194,11 +2194,15 @@ class read_file_MM(create_batch_WESPE):
 
         f = read_parquet(self.file_full, engine='fastparquet')
         try:
+            f = f.rename(columns={"dldTime": "dldTimeSteps"})
+        except:
+            pass
+        try:
             f = f.dropna(subset=['trainId', 'pulseId', 'dldPosX', 'dldPosY',
                                  'dldTimeSteps', 'delayStage'], how='any')
         except:
             f = f.dropna(subset=['trainId', 'pulseId', 'x', 'y',
-                                 'dldTime', 'delayStage'], how='any')
+                                 'dldTimeSteps', 'delayStage'], how='any')
         self.file_folder = self.file_full.split(os.sep)[:-1]
         self.file_folder = f'{os.sep}'.join(self.file_folder)
 
@@ -2837,10 +2841,23 @@ class read_file_MM(create_batch_WESPE):
         Method for switching visualization to 'Binding energy'
         coordinate of 'Energy' dimension.
         '''
-        if self.Map_2D_plot.attrs['x_alt'] is False:
-            coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs['x_label_a']]
-            self.Map_2D_plot.coords['Dim_x'] = coord
-            self.Map_2D_plot.attrs['x_alt'] = True
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if self.Map_2D_plot.attrs[f'{i}_units'] == 'eV':
+                    check.append(i)
+                elif 'energy' in self.Map_2D_plot.attrs[f'{i}_label']:
+                    check.append(i)
+            except:
+                pass
+        try:
+            check = check[0]
+            if self.Map_2D_plot.attrs[f'{check}_alt'] is False:
+                coord = self.Map_2D_plot.coords[self.Map_2D_plot.attrs[f'{check}_label_a']]
+                self.Map_2D_plot.coords[f'Dim_{check}'] = coord
+                self.Map_2D_plot.attrs[f'{check}_alt'] = True
+        except:
+            pass
 
     def axs_plot(self, axs):
         # Loading configs from json file.
@@ -5379,8 +5396,10 @@ if __name__ == "__main__":
                         object_hook=lambda d: SimpleNamespace(**d))
 
     file_dir = r'D:\Data\HEXTOF'
+    file_dir = r'D:\Data\Example HEXTOF'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
+    run_numbers = [44824,44825,44826,44827]
     # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
@@ -5389,8 +5408,10 @@ if __name__ == "__main__":
         # i.Bunch_filter([0.4,0.9], B_type='x')
         # i.Bunch_filter([0.4,0.9], B_type='y')
         # i.Bunch_filter([4,4.27], B_type='t')
-        i.create_map(ordinate='xyt', energy_step=0.001, delay_step=0.001, z_step=100,
+        # i.Bunch_filter([34,36], B_type='t')
+        i.create_map(ordinate='xy', energy_step=0.003, delay_step=0.009, z_step=0.05,
                      save='off')
+        # i.set_BE()
     b.create_map()
     # b.time_zero(t0=3539.7)
     # b.save_map_dat()
@@ -5403,8 +5424,8 @@ if __name__ == "__main__":
     # b.set_KE()
     # c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
     # c.correlate_i()
-    b.ROI([0.4,0.9], axis='Dim_x', mod_map=True)
-    b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
+    # b.ROI([0.4,0.9], axis='Dim_x', mod_map=True)
+    # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
     plot_files([b], dif_3D=False)
 else:
     # Loading configs from json file.
