@@ -4463,11 +4463,26 @@ class map_cut:
             else:
                 self.cuts.append(cut.values)
                 self.map_show.append(True)
-  
-    def correlate_i(self, step=0.0001, c_f=0.1):
+
+    def correlate_i(self, step=None, c_f=0.1):
         data = self.Map_2D_plot.values
         data_step = np.gradient(self.Map_2D_plot.coords['Dim_x'].values)[0]
         delay = self.Map_2D_plot.coords['Dim_y'].values
+
+        if step is None:
+            for i in range(10):
+                rnd = abs(np.around(data_step, i))
+                if rnd > 0:
+                    check = np.floor(abs(data_step)/(0.8*rnd))
+                    if check > 0:
+                        if i == 0 or i == 1:
+                            d = '1e-' + str(i+2)
+                        else:
+                            d = '1e-' + str(i+1)
+                        step = float(f'{d}')
+                        break
+        if step is None:
+            step = 0.0001
 
         order_y = 'y_order_rec'
         if self.Map_2D_plot.attrs['y_alt'] is True:
@@ -4669,6 +4684,9 @@ class map_cut:
         '''
         x = self.coords
         y = self.cuts[0]
+        if np.median(y) < 0:
+            y = -np.array(y)
+            self.cuts[0] = y
         axis_step = np.gradient(x).mean()
 
         '''Voigt fit'''
@@ -5397,9 +5415,10 @@ if __name__ == "__main__":
 
     file_dir = r'D:\Data\HEXTOF'
     file_dir = r'D:\Data\Example HEXTOF'
+    file_dir = r'D:\Data\MM December 23'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
-    run_numbers = [44824,44825,44826,44827]
+    # run_numbers = [44824,44825,44826,44827]
     # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
@@ -5409,9 +5428,9 @@ if __name__ == "__main__":
         # i.Bunch_filter([0.4,0.9], B_type='y')
         # i.Bunch_filter([4,4.27], B_type='t')
         # i.Bunch_filter([34,36], B_type='t')
-        i.create_map(ordinate='xy', energy_step=0.003, delay_step=0.009, z_step=0.05,
+        i.create_map(ordinate='td', energy_step=0.001, delay_step=0.1, z_step=0.05,
                      save='off')
-        # i.set_BE()
+        i.set_BE()
     b.create_map()
     # b.time_zero(t0=3539.7)
     # b.save_map_dat()
@@ -5422,11 +5441,11 @@ if __name__ == "__main__":
     # b.set_BE()
     # b.set_T0()
     # b.set_KE()
-    # c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
-    # c.correlate_i()
-    # b.ROI([0.4,0.9], axis='Dim_x', mod_map=True)
+    c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
+    c.correlate_i()
+    b.ROI([4,5], axis='Dim_x', mod_map=True)
     # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    plot_files([b], dif_3D=False)
+    plot_files([b,c], dif_3D=False)
 else:
     # Loading configs from json file.
     try:
