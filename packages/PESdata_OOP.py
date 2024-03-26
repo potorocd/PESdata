@@ -36,6 +36,7 @@ from pandas import read_table
 from pandas import read_parquet
 from timeit import default_timer as timer
 from re import findall
+from yaml import safe_load as yaml_safe_load
 try:
     from julia.api import Julia
 except:
@@ -978,7 +979,10 @@ class create_batch_WESPE:
                     image_data = self.Map_2D_plot.values
     
                     vmin = np.min(image_data)
-                    vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                    try:
+                        vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                    except:
+                        vmax = np.max(image_data)
                     self.map_z_tick = self.map_z_tick*config.map_scale
                     if vmin < 0:
                         vmin = vmin*config.map_scale
@@ -1020,7 +1024,10 @@ class create_batch_WESPE:
                         self.Map_2D_plot = self.Map_3D[:,:,np.where(self.image_data_z==pos)[0][0]]
                         image_data = self.Map_2D_plot.values
                         vmin = np.min(image_data)
-                        vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                        try:
+                            vmax = np.max(image_data[np.where(image_data<np.mean(image_data)*1000)])*config.map_scale
+                        except:
+                            vmax = np.max(image_data)
                         im1.set_data(image_data)
     
                         self.map_z_tick = (vmax - vmin)/config.map_n_ticks_z
@@ -2000,6 +2007,7 @@ class create_batch_MM(create_batch_WESPE):
         else:
             mono_s = 'Mono check: No mono energy jumps detected (+)'
         self.en_threshold = np.max(mono) + 50
+        self.mono = mono
         if self.en_threshold < 50:
             self.en_threshold = 1000
         static_cut_list = []
@@ -2121,12 +2129,30 @@ class create_batch_MM(create_batch_WESPE):
             total_map.attrs['Merge successful'] = False
 
         # Filter empty EDCs
-        # y_check = total_map.sum('Dim_x', skipna=True)
-        # y_check = y_check/total_map.coords['Dim_x'].shape[0]
-        # remove_list = np.where(y_check < 1)
-        # remove_list = y_check.coords['Dim_y'][remove_list]
-        # for i in remove_list:
-            # total_map = total_map.where(total_map['Dim_y'] != i, drop=True)
+        check = []
+        for i in ['x', 'y', 'z']:
+            try:
+                if total_map.attrs[f'{i}_units'] == 'ps':
+                    check.append(i)
+                elif 'ID' in total_map.attrs[f'{i}_label']:
+                    check.append(i)
+            except:
+                pass
+            
+        if len(check) > 0:
+            try:
+                for check_i in check:
+                    y_check = total_map
+                    # shape_list = []
+                    for i in total_map.dims:
+                        if i != f'Dim_{check_i}':
+                            # shape_list.append(total_map.coords[i].shape[0])
+                            y_check = y_check.sum(i, skipna=True)
+                    # y_check = y_check/sum(shape_list)
+                    remove_list = np.where(y_check < np.max(y_check)*0.01)
+                    total_map = total_map.drop_isel({f'Dim_{check_i}': remove_list})
+            except:
+                pass
 
         shape = total_map.coords['Dim_y'].values.shape[0]
         total_map.coords['Delay index'] = ('Dim_y', np.arange(shape))
@@ -2140,6 +2166,59 @@ class create_batch_MM(create_batch_WESPE):
         except:
             pass
         self.Map_2D_plot = self.Map_2D
+
+        try:
+            yaml_name = [i for i in os.listdir(self.file_dir) if i.endswith('.yaml')]
+            yaml_full = self.file_dir + os.sep + yaml_name[0]
+            with open(yaml_full, 'r') as yaml_file:
+                yaml_data = yaml_safe_load(yaml_file)
+            energy_offset = yaml_data['energy']['calibration']['E0']
+            energy_scale = yaml_data['energy']['calibration']['energy_scale']
+            tof_distance = yaml_data['energy']['calibration']['d']
+            time_offset = yaml_data['energy']['calibration']['t0']
+            binwidth = yaml_data['dataframe']['tof_binwidth']
+            binning = yaml_data['dataframe']['tof_binning']
+            if energy_scale == 'binding':
+                sign = -1
+            else:
+                sign = 1
+            t = self.Map_2D.coords['Binding energy']*1000
+            E = (
+                2.84281e-12 * sign * (tof_distance / (t * binwidth * 2**binning - time_offset)) ** 2
+                + energy_offset
+                )
+            mono = np.nanmean(self.mono)
+            E_alt = mono - E - 4.5
+            if energy_scale == 'binding':
+                self.Map_2D.coords['Kinetic energy'].values = E_alt.values
+                self.Map_2D.coords['Binding energy'].values = E.values
+            else:
+                self.Map_2D.coords['Kinetic energy'].values = E.values
+                self.Map_2D.coords['Binding energy'].values = E_alt.values
+
+            check = []
+            for i in ['x', 'y', 'z']:
+                try:
+                    if self.Map_2D_plot.attrs[f'{i}_units'] == 'eV':
+                        check.append(i)
+                    elif 'energy' in self.Map_2D_plot.attrs[f'{i}_label']:
+                        check.append(i)
+                except:
+                    pass
+            try:
+                check = check[0]
+                if self.Map_2D.attrs[f'{check}_alt'] is False:
+                    state = 'Kinetic energy'
+                else:
+                    state = 'Binding energy'
+                self.Map_2D.coords[f'Dim_{check}'] = self.Map_2D.coords[state]
+                self.Map_2D.attrs[f'{check}_units'] = 'eV'
+                self.Map_2D.attrs[f'{check}_units_a'] = 'eV'
+                self.Map_2D_plot = self.Map_2D
+            except:
+                pass
+        except:
+            print('***No energy calibration was applied***')
 
         self.varied_y_step = False
         try:
@@ -2193,16 +2272,22 @@ class read_file_MM(create_batch_WESPE):
             self.is_static = False
 
         f = read_parquet(self.file_full, engine='fastparquet')
+
         try:
             f = f.rename(columns={"dldTime": "dldTimeSteps"})
         except:
             pass
+
         try:
-            f = f.dropna(subset=['trainId', 'pulseId', 'dldPosX', 'dldPosY',
-                                 'dldTimeSteps', 'delayStage'], how='any')
+            subset = []
+            for i in ['trainId', 'pulseId', 'dldPosX', 'dldPosY', 'x', 'y',
+                      'dldTimeSteps', 'delayStage']:
+                if i in f.keys():
+                    subset.append(i)
+            f = f.dropna(subset=subset, how='any')
         except:
-            f = f.dropna(subset=['trainId', 'pulseId', 'x', 'y',
-                                 'dldTimeSteps', 'delayStage'], how='any')
+            pass
+
         self.file_folder = self.file_full.split(os.sep)[:-1]
         self.file_folder = f'{os.sep}'.join(self.file_folder)
 
@@ -2291,7 +2376,7 @@ class read_file_MM(create_batch_WESPE):
         self.KE = [0,1]
 
         #self.mono_mean = np.around(np.mean(self.mono[self.mono>0]), 2)
-        self.mono_mean=0
+        self.mono_mean = np.nanmean(self.mono)
         self.info.append(f'FEL mono: {self.mono_mean:.2f} eV / MacroBunches: {self.B_num} / MicroBunches: {self.MB_num}')
 
         self.KE_min = np.around(np.min(KE), 3)
@@ -4849,6 +4934,25 @@ class map_cut:
         self.dif_cuts = t_cut_plot_dif
         self.dif_labels = dif_labels
 
+    def align_cuts(self):
+        shift = []
+        for c_i, i in enumerate(self.cuts):
+            dump = []
+            EDC_y_step = np.array(i) - np.min(i)
+            for c_j, j in enumerate(self.cuts):
+                data_y_step = np.array(j) - np.min(j)
+                corr = scipy.signal.correlate(EDC_y_step, data_y_step,
+                                              mode='full')
+                lags = scipy.signal.correlation_lags(EDC_y_step.shape[0],
+                                                     data_y_step.shape[0],
+                                                     mode="full")
+                lag = (lags[np.argmax(corr)])
+                dump.append(lag)
+            shift.append(np.min(lag))
+        shift = np.array(shift) - np.max(shift)
+        for counter, i in enumerate(self.cuts):
+            self.cuts[counter] = np.roll(i, np.abs(shift[counter]))
+
     def waterfall(self):
         try:
             with open('config.json', 'r') as json_file:
@@ -5098,12 +5202,34 @@ class map_cut:
         if self.plot_dif is True:
             for i, cut in enumerate(self.dif_cuts):
                 label = self.dif_labels[i]
-                axs.plot(self.coords, cut, config.line_type_d,
-                         color=color_dict[i],
-                         label=label,
-                         markersize=config.marker_size_d,
-                         linewidth=config.line_width_d,
-                         alpha=config.line_op_d/100)
+                if len(self.dif_cuts) >= 2:
+                    axs.plot(self.coords, cut, config.line_type_d,
+                              color=color_dict[i],
+                              label=label,
+                              markersize=config.marker_size_d,
+                              linewidth=config.line_width_d,
+                              alpha=config.line_op_d/100)
+                    axs.fill_between(self.coords, cut,
+                                      alpha=0.5,
+                                      color=color_dict[i],
+                                    )
+                else:
+                    for j in range(2):
+                        if j == 0:
+                            fill = np.array(cut)
+                            fill[np.where(fill<0)] = 0
+                            axs.fill_between(self.coords, fill,
+                                             alpha=0.5,
+                                             color='red',
+                                             label=label
+                                            )
+                        else:
+                            fill = np.array(cut)
+                            fill[np.where(fill>=0)] = 0
+                            axs.fill_between(self.coords, fill,
+                                             alpha=0.5,
+                                             color='blue'
+                                            )
 
         if self.cor is True:
             if self.en_calib == '-':
@@ -5413,22 +5539,24 @@ if __name__ == "__main__":
     config = json.loads(config,
                         object_hook=lambda d: SimpleNamespace(**d))
 
-    file_dir = r'D:\Data\HEXTOF'
     file_dir = r'D:\Data\Example HEXTOF'
     file_dir = r'D:\Data\MM December 23'
+    file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
     run_numbers = ['run_50032_50033_50041']
     # run_numbers = [44824,44825,44826,44827]
     # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
+    run_numbers = ['run_51663']
+    # run_numbers = ['p900417_00109']
     b = create_batch_MM(file_dir, run_numbers)
     for i in b.batch_list:
         # i.Bunch_filter([0.4,0.9], B_type='x')
         # i.Bunch_filter([0.4,0.9], B_type='y')
         # i.Bunch_filter([4,4.27], B_type='t')
         # i.Bunch_filter([34,36], B_type='t')
-        i.create_map(ordinate='td', energy_step=0.001, delay_step=0.1, z_step=0.05,
+        i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
                      save='off')
         i.set_BE()
     b.create_map()
@@ -5441,11 +5569,14 @@ if __name__ == "__main__":
     # b.set_BE()
     # b.set_T0()
     # b.set_KE()
-    c = map_cut(b, [3539], [1], axis='Dim_y', approach='mean')
-    c.correlate_i()
-    b.ROI([4,5], axis='Dim_x', mod_map=True)
+    b.ROI([102,97.5], axis='Dim_x', mod_map=True)
+    c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
+    c.align_cuts()
+    c.dif_plot()
+    # c.correlate_i()
     # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    plot_files([b,c], dif_3D=False)
+    p = plot_files([c], dif_3D=False)
+    # p.legend_plot()
 else:
     # Loading configs from json file.
     try:

@@ -831,7 +831,7 @@ class MainApp(App):
         self.k2 = ToggleButton(text='Time axis',
                                state='down',
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
-                               size_hint=(0.34, 1),
+                               size_hint=(0.28, 1),
                                background_normal='packages/normal.png',
                                background_down='packages/down.png',
                                font_name=config.kivy_font,
@@ -842,18 +842,27 @@ class MainApp(App):
         self.k4 = ToggleButton(text='Waterfall: OFF',
                                state='normal',
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
-                               size_hint=(0.22, 1),
+                               size_hint=(0.16, 1),
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
                                )
         self.k4.bind(on_press=self.callback_k4)
+        # Align slices
+        self.k7 = ToggleButton(text='Align: OFF',
+                               state='normal',
+                               font_name=config.kivy_font,
+                               font_size=config.kivy_font_size,
+                               pos_hint={"center_x": 0.5, "center_y": 0.5},
+                               size_hint=(0.16, 1)
+                               )
+        self.k7.bind(on_press=self.callback_k7)
         # Add map
         self.k5 = ToggleButton(text='Add map: ON',
                                state='down',
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
-                               size_hint=(0.22, 1)
+                               size_hint=(0.2, 1)
                                )
         self.k5.bind(on_press=self.callback_k5)
         # Add legend
@@ -862,13 +871,14 @@ class MainApp(App):
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
-                               size_hint=(0.22, 1)
+                               size_hint=(0.2, 1)
                                )
         self.k6.bind(on_press=self.callback_k6)
         # add widgets to the line
         self.box12.add_widget(k1)
         self.box12.add_widget(self.k2)
         self.box12.add_widget(self.k4)
+        self.box12.add_widget(self.k7)
         self.box12.add_widget(self.k5)
         self.box12.add_widget(self.k6)
         '''
@@ -896,7 +906,7 @@ class MainApp(App):
         self.l3 = TextInput(text=config.cut_pos,
                             multiline=False,
                             pos_hint={"center_x": 0.5, "center_y": 0.5},
-                            size_hint=(0.12, 0.7),
+                            size_hint=(0.13, 0.7),
                             font_name=config.kivy_font,
                             font_size=config.kivy_font_size
                             )
@@ -921,7 +931,7 @@ class MainApp(App):
         self.l6 = TextInput(text=config.cut_width,
                             multiline=False,
                             pos_hint={"center_x": 0.5, "center_y": 0.5},
-                            size_hint=(0.11, 0.7),
+                            size_hint=(0.12, 0.7),
                             font_name=config.kivy_font,
                             font_size=config.kivy_font_size
                             )
@@ -937,7 +947,7 @@ class MainApp(App):
         self.k3 = ToggleButton(text='Difference: OFF',
                                state='normal',
                                pos_hint={"center_x": 0.5, "center_y": 0.5},
-                               size_hint=(0.22, 1),
+                               size_hint=(0.2, 1),
                                font_name=config.kivy_font,
                                font_size=config.kivy_font_size,
                                )
@@ -1962,6 +1972,8 @@ class MainApp(App):
                 self.cut.savgol_smooth()
             if self.m5.state == 'down':
                 self.cut.derivative()
+            if self.k7.state == 'down':
+                self.cut.align_cuts()
 
             if self.k3.state == 'down':
                 self.cut.dif_plot()
@@ -3188,6 +3200,12 @@ class MainApp(App):
             self.k6.text = 'Legend: ON'
         else:
             self.k6.text = 'Legend: OFF'
+
+    def callback_k7(self, instance):
+        if self.k7.state == 'down':
+            self.k7.text = 'Align: ON'
+        else:
+            self.k7.text = 'Align: OFF'
 
     def callback_m2(self, instance):
         if self.m2.state == 'down':
