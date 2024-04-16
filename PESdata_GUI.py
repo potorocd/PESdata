@@ -111,9 +111,7 @@ def scan_dir(file_dir):
         file_type = 'MM'
     else:
         if len(dir_dict['.h5']) > 0:
-            file_type = 'MM'
-            if count_dict['.h5']/len(set(dir_dict['.h5'])) > 5:
-                file_type = 'ALS'
+            file_type = 'ALS'
         else:
             if len(dir_dict['.ibw']) > 0:
                 file_type = 'ibw'

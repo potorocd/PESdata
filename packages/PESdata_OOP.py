@@ -3049,10 +3049,18 @@ class read_file_ALS(create_batch_WESPE):
                 f_size.append(size)
                 if e_num_abs is True:
                     with h5py.File(file_path, 'r') as f:
-                        energy = f.get('/x')[:]
-                    e_num.append(energy.shape[0])
-                    if counter == 0:
-                        weight = os.path.getsize(file_path)/energy.shape[0]
+                        try:
+                            energy = f.get('/x')[:]
+                            self.binned = False
+                            e_num.append(energy.shape[0])
+                            if counter == 0:
+                                weight = os.path.getsize(file_path)/energy.shape[0]
+                        except:
+                            binned_data = f.get('TRXPS_binned')[:]
+                            self.binned = True
+                            e_num.append(np.sum(binned_data))
+                            if counter == 0:
+                                weight = os.path.getsize(file_path)/np.sum(binned_data)
                 else:
                     e_num.append(os.path.getsize(file_path)/weight)
                 iter_end = timer()
@@ -3246,6 +3254,8 @@ class read_file_ALS(create_batch_WESPE):
                     print(f'Run {self.run_num_full} processing')
                     print('***Start of raw data processing***')
                 try:
+                    if self.binned is True:
+                        raise Exception
                     julia_start = timer()
                     if counter_g == 0:
                         print('Loading Julia...')
@@ -3275,119 +3285,146 @@ class read_file_ALS(create_batch_WESPE):
                 file_path = file_full + os.sep + i
                 try:
                     with h5py.File(file_path, 'r') as f:
-                        energy = f.get('/x')[:]
-                        delay = f.get('/t')[:]
+                        try:
+                            energy = f.get('/x')[:]
+                            delay = f.get('/t')[:]
+                            binned = False
+                        except:
+                            binned_data = np.array(f.get('TRXPS_binned'))[::-1]
+                            binned_data = np.rot90(binned_data,
+                                                   k=3)
+                            binned = True
+                            en_ch_max = binned_data.shape[1] - 1
                 except OSError:
                     print('Can not open h5 file:')
                     print(file_path)
                     continue
-
-                min_list = np.where(energy < 0)
-                max_list = np.where(energy > 150)
-                del_list = np.append(min_list, max_list)
-                energy = np.delete(energy, del_list)
-                delay = np.delete(delay, del_list)
-
-                if bunches_cutoff != np.inf:
-                    min_list = np.where(delay < 0)
-                    max_list = np.where(delay > bunches_cutoff)
+                
+                if binned is False:
+                    min_list = np.where(energy < 0)
+                    max_list = np.where(energy > 150)
                     del_list = np.append(min_list, max_list)
-                    y_step_trigger = False
-                    if len(del_list) > 0:
-                        y_step_trigger = True
-                        energy = np.delete(energy, del_list)
-                        delay = np.delete(delay, del_list)
-
-                if delay.shape[0] == 0 or energy.shape[0] == 0:
-                    print('Energy or time arrays are missing in:')
-                    print(file_path)
-                    continue
-
-                if np.max(delay) > 1e10:  # some runs have 10e16 values
-                    check = np.median(delay)
-                else:
-                    check = np.mean(delay)
-                min_list = np.where(delay < check-2*check)
-                max_list = np.where(delay > check+2*check)
-                del_list = np.append(min_list, max_list)
-                if del_list.size != 0:
                     energy = np.delete(energy, del_list)
                     delay = np.delete(delay, del_list)
+    
+                    if bunches_cutoff != np.inf:
+                        min_list = np.where(delay < 0)
+                        max_list = np.where(delay > bunches_cutoff)
+                        del_list = np.append(min_list, max_list)
+                        y_step_trigger = False
+                        if len(del_list) > 0:
+                            y_step_trigger = True
+                            energy = np.delete(energy, del_list)
+                            delay = np.delete(delay, del_list)
+    
+                    if delay.shape[0] == 0 or energy.shape[0] == 0:
+                        print('Energy or time arrays are missing in:')
+                        print(file_path)
+                        continue
+    
+                    if np.max(delay) > 1e10:  # some runs have 10e16 values
+                        check = np.median(delay)
+                    else:
+                        check = np.mean(delay)
+                    min_list = np.where(delay < check-2*check)
+                    max_list = np.where(delay > check+2*check)
+                    del_list = np.append(min_list, max_list)
+                    if del_list.size != 0:
+                        energy = np.delete(energy, del_list)
+                        delay = np.delete(delay, del_list)
 
                 x_step = 1
                 should_restart = True
                 while should_restart:
-                    if ALS_mode == '2B' or ALS_mode is None:
-                        y_step = np.max(delay)/(DLD_t_res*0.1)
-                        y_step = y_step*12/config.measured_periods
-                        y_step = rounding(y_step, 1000)
-                        if first_file is False and isinstance(bunches, int):
-                            y_step = rounding(y_step*2*config.measured_periods/bunches, 1000)
-                    else:
-                        y_step = np.max(delay)/DLD_t_res
-                        y_step = y_step*12/config.measured_periods
-                        y_step = rounding(y_step, 10)
-                        if first_file is False and isinstance(bunches, int):
-                            y_step = rounding(y_step*config.measured_periods/bunches, 10)
-
-                    DLD_energy_r = energy
-                    if use_julia is False:
-                        DLD_delay_r = rounding(delay, y_step)
-                        DLD_delay_r = np.around(DLD_delay_r,
-                                                decimal_n(y_step))
-                        DLD_energy_r = np.around(DLD_energy_r,
-                                                 decimal_n(x_step))
-                    else:
-                        DLD_delay_r = np.array(rounding_jl(delay, y_step))
-
-                    image_data_x = np.arange(en_ch_min,
-                                             en_ch_max+x_step,
-                                             x_step)
-                    image_data_y = np.arange(DLD_delay_r.min(),
-                                             DLD_delay_r.max()+y_step,
-                                             y_step)
-
-                    if MB_filter is not None and use_julia is False:
-                        if image_data_y.shape[0] <= np.max(MB_filter):
-                            MB_filter_f = np.array(MB_filter)[np.where(np.array(MB_filter) < image_data_y.shape[0])[0]]
+                    if binned is False:
+                        if ALS_mode == '2B' or ALS_mode is None:
+                            y_step = np.max(delay)/(DLD_t_res*0.1)
+                            y_step = y_step*12/config.measured_periods
+                            y_step = rounding(y_step, 1000)
+                            if first_file is False and isinstance(bunches, int):
+                                y_step = rounding(y_step*2*config.measured_periods/bunches, 1000)
                         else:
-                            MB_filter_f = MB_filter
-                        image_data_y = np.delete(image_data_y, MB_filter_f)
-
-                    if use_julia is True:
-                        yedges = np.append(image_data_y,
-                                           image_data_y[-1]+y_step)
-                        yedges = yedges-0.5*y_step
-                        xedges = np.append(image_data_x,
-                                           image_data_x[-1]+x_step)
-                        xedges = xedges-0.5*x_step
-                        image_data = make_hist(xedges, yedges,
-                                               DLD_energy_r, DLD_delay_r)
-                        image_data = np.array(image_data).T
+                            y_step = np.max(delay)/DLD_t_res
+                            y_step = y_step*12/config.measured_periods
+                            y_step = rounding(y_step, 10)
+                            if first_file is False and isinstance(bunches, int):
+                                y_step = rounding(y_step*config.measured_periods/bunches, 10)
+    
+                        DLD_energy_r = energy
+                        if use_julia is False:
+                            DLD_delay_r = rounding(delay, y_step)
+                            DLD_delay_r = np.around(DLD_delay_r,
+                                                    decimal_n(y_step))
+                            DLD_energy_r = np.around(DLD_energy_r,
+                                                     decimal_n(x_step))
+                        else:
+                            DLD_delay_r = np.array(rounding_jl(delay, y_step))
+    
+                        image_data_x = np.arange(en_ch_min,
+                                                 en_ch_max+x_step,
+                                                 x_step)
+                        image_data_y = np.arange(DLD_delay_r.min(),
+                                                 DLD_delay_r.max()+y_step,
+                                                 y_step)
+    
+                        if MB_filter is not None and use_julia is False:
+                            if image_data_y.shape[0] <= np.max(MB_filter):
+                                MB_filter_f = np.array(MB_filter)[np.where(np.array(MB_filter) < image_data_y.shape[0])[0]]
+                            else:
+                                MB_filter_f = MB_filter
+                            image_data_y = np.delete(image_data_y, MB_filter_f)
+    
+                        if use_julia is True:
+                            yedges = np.append(image_data_y,
+                                               image_data_y[-1]+y_step)
+                            yedges = yedges-0.5*y_step
+                            xedges = np.append(image_data_x,
+                                               image_data_x[-1]+x_step)
+                            xedges = xedges-0.5*x_step
+                            image_data = make_hist(xedges, yedges,
+                                                   DLD_energy_r, DLD_delay_r)
+                            image_data = np.array(image_data).T
+                        else:
+                            image_data = []
+                            for i in image_data_y:
+                                array_1 = DLD_energy_r[np.where(DLD_delay_r == i)]
+                                line = []
+                                array_1 = array_1.astype('f')
+                                for j in image_data_x:
+                                    array_2 = np.where(array_1 == j)[0]
+                                    line.append(array_2.shape[0])
+                                image_data.append(line)
+    
+                        if use_julia is True:
+                            energy_ROI = np.sum(np.array(image_data), axis=0)
+                            energy_ROI_i = np.where(energy_ROI>np.median(energy_ROI))[0]                        
+                            image_data_check = np.array(image_data)[:, energy_ROI_i]
+                            image_data_1D = np.sum(image_data_check, axis=1)
+                        else:
+                            image_data_check = np.array(image_data)
+                            image_data_1D = np.sum(image_data_check, axis=1)
+    
+                        # check for intensity artifacts
+                        if ALS_mode == 'MB':
+                            check = np.where(image_data_1D > np.median(image_data_1D)*6)
+                            image_data_1D[check] = 0   
                     else:
-                        image_data = []
-                        for i in image_data_y:
-                            array_1 = DLD_energy_r[np.where(DLD_delay_r == i)]
-                            line = []
-                            array_1 = array_1.astype('f')
-                            for j in image_data_x:
-                                array_2 = np.where(array_1 == j)[0]
-                                line.append(array_2.shape[0])
-                            image_data.append(line)
+                        n_bins = DLD_t_res
+                        bin_size = binned_data.shape[0]//n_bins
 
-                    if use_julia is True:
-                        energy_ROI = np.sum(np.array(image_data), axis=0)
-                        energy_ROI_i = np.where(energy_ROI>np.median(energy_ROI))[0]                        
-                        image_data_check = np.array(image_data)[:, energy_ROI_i]
-                        image_data_1D = np.sum(image_data_check, axis=1)
-                    else:
-                        image_data_check = np.array(image_data)
-                        image_data_1D = np.sum(image_data_check, axis=1)
+                        new_binned_data = binned_data[:bin_size*n_bins]
+                        new_binned_data = new_binned_data.reshape(n_bins,
+                                                                  bin_size,
+                                                                  binned_data.shape[1])
+                        new_binned_data = new_binned_data.sum(axis=1)
 
-                    # check for intensity artifacts
-                    if ALS_mode == 'MB':
-                        check = np.where(image_data_1D > np.median(image_data_1D)*6)
-                        image_data_1D[check] = 0
+                        image_data = new_binned_data
+                        image_data_check = new_binned_data
+                        image_data_1D = np.sum(image_data, axis=1)
+                        image_data_x = np.arange(en_ch_min,
+                                                 en_ch_max+x_step,
+                                                 x_step)
+                        
 
                     if ALS_mode is None:
                         if np.median(image_data_1D) < np.max(image_data_1D)*0.3:
@@ -3400,7 +3437,10 @@ class read_file_ALS(create_batch_WESPE):
 
                     state = 'off'
                     bunch = 1
-                    threshold = np.max(image_data_1D)/10
+                    if binned is False:
+                        threshold = np.max(image_data_1D)/10
+                    else:
+                        threshold = np.max(image_data_1D)/4
                     Bunch_d = {}
                     Bunch_d[bunch] = []
                     for counter, i in enumerate(image_data_1D):
@@ -3431,6 +3471,13 @@ class read_file_ALS(create_batch_WESPE):
 
                     Bunch_d_f = {}
                     Bunch_d_MB = {}
+                    
+                    if binned is True:
+                        length_list = []
+                        for i in list(Bunch_d.keys()):
+                            length_list.append(len(Bunch_d[i]))
+                        length_lim = np.histogram(length_list, bins=100)[-1][2]
+
                     if ALS_mode == 'MB':
                         for i in list(Bunch_d.keys()):
                             image_data_y_b.append(i)
@@ -3440,12 +3487,21 @@ class read_file_ALS(create_batch_WESPE):
                             if len(Bunch_d[i]) > 1:
                                 for j in Bunch_d[i][1:]:
                                     line = line + np.array(image_data[j])
-                            if check < np.max(image_data_1D)*0.4:
-                                image_data_b.append(list(line))
-                                Bunch_d_f[i] = Bunch_d[i]
+                                    
+                            if binned is False:
+                                if check < np.max(image_data_1D)*0.4:
+                                    image_data_b.append(list(line))
+                                    Bunch_d_f[i] = Bunch_d[i]
+                                else:
+                                    if MB_filter is None and use_julia is False:
+                                        Bunch_d_MB[i] = Bunch_d[i]
                             else:
-                                if MB_filter is None and use_julia is False:
-                                    Bunch_d_MB[i] = Bunch_d[i]
+                                if len(Bunch_d[i]) < length_lim:
+                                    image_data_b.append(list(line))
+                                    Bunch_d_f[i] = Bunch_d[i]
+                                else:
+                                    if MB_filter is None and use_julia is False:
+                                        Bunch_d_MB[i] = Bunch_d[i]
                         image_data_y_b = np.arange(len(image_data_b))+1
                     else:
                         for i in list(Bunch_d.keys()):
@@ -5543,22 +5599,26 @@ if __name__ == "__main__":
     file_dir = r'D:\Data\MM December 23'
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
+    file_dir = r'D:\Data\ALS 24'
     run_numbers = ['run_50032_50033_50041']
     # run_numbers = [44824,44825,44826,44827]
     # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     run_numbers = ['run_51663']
+    run_numbers = ['Test']
     # run_numbers = ['p900417_00109']
-    b = create_batch_MM(file_dir, run_numbers)
+    b = create_batch_ALS(file_dir, run_numbers)
     for i in b.batch_list:
         # i.Bunch_filter([0.4,0.9], B_type='x')
         # i.Bunch_filter([0.4,0.9], B_type='y')
         # i.Bunch_filter([4,4.27], B_type='t')
         # i.Bunch_filter([34,36], B_type='t')
-        i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
-                     save='off')
-        i.set_BE()
+        # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
+        #              save='off')
+        i.create_map(ordinate='MB_ID', bunch_sel=3,
+                     save='off', bunches='all', DLD_t_res=9500)
+        # i.set_BE()
     b.create_map()
     # b.time_zero(t0=3539.7)
     # b.save_map_dat()
@@ -5569,14 +5629,16 @@ if __name__ == "__main__":
     # b.set_BE()
     # b.set_T0()
     # b.set_KE()
-    b.ROI([102,97.5], axis='Dim_x', mod_map=True)
-    c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
-    c.align_cuts()
-    c.dif_plot()
+    # b.ROI([102,97.5], axis='Dim_x', mod_map=True)
+    # c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
+    c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
+    # c.align_cuts()
+    # c.dif_plot()
     # c.correlate_i()
     # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    p = plot_files([c], dif_3D=False)
-    # p.legend_plot()
+    p = plot_files([b,c], dif_3D=False)
+    p.legend_plot()
+    p.span_plot(c)
 else:
     # Loading configs from json file.
     try:
