@@ -3412,9 +3412,13 @@ class read_file_ALS(create_batch_WESPE):
                         n_bins = DLD_t_res
                         bin_size = binned_data.shape[0]//n_bins
 
-                        new_binned_data = binned_data[:bin_size*n_bins]
+                        new_binned_data = np.pad(binned_data,
+                                               [(0, (bin_size+1)*n_bins-binned_data.shape[0]),
+                                                (0, 0)], mode='constant', constant_values=0)
+
+                        # new_binned_data = binned_data[:bin_size*n_bins]
                         new_binned_data = new_binned_data.reshape(n_bins,
-                                                                  bin_size,
+                                                                  bin_size+1,
                                                                   binned_data.shape[1])
                         new_binned_data = new_binned_data.sum(axis=1)
 
@@ -5617,7 +5621,7 @@ if __name__ == "__main__":
         # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
         #              save='off')
         i.create_map(ordinate='MB_ID', bunch_sel=3,
-                     save='off', bunches='all', DLD_t_res=9500)
+                     save='off', bunches='all', DLD_t_res=10000)
         # i.set_BE()
     b.create_map()
     # b.time_zero(t0=3539.7)
