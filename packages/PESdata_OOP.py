@@ -3409,18 +3409,24 @@ class read_file_ALS(create_batch_WESPE):
                             check = np.where(image_data_1D > np.median(image_data_1D)*6)
                             image_data_1D[check] = 0   
                     else:
-                        n_bins = DLD_t_res
-                        bin_size = binned_data.shape[0]//n_bins
-
-                        new_binned_data = np.pad(binned_data,
-                                               [(0, (bin_size+1)*n_bins-binned_data.shape[0]),
-                                                (0, 0)], mode='constant', constant_values=0)
-
-                        # new_binned_data = binned_data[:bin_size*n_bins]
-                        new_binned_data = new_binned_data.reshape(n_bins,
-                                                                  bin_size+1,
-                                                                  binned_data.shape[1])
-                        new_binned_data = new_binned_data.sum(axis=1)
+                        if DLD_t_res != 0:
+                            n_bins = DLD_t_res
+                            bin_size = binned_data.shape[0]//n_bins
+    
+                            new_binned_data = np.pad(binned_data,
+                                                   [(0, (bin_size+1)*n_bins-binned_data.shape[0]),
+                                                    (0, 0)], mode='constant', constant_values=0)
+    
+                            # new_binned_data = binned_data[:bin_size*n_bins]
+                            new_binned_data = new_binned_data.reshape(n_bins,
+                                                                      bin_size+1,
+                                                                      binned_data.shape[1])
+                            new_binned_data = new_binned_data.sum(axis=1)
+                        
+                        else:
+                            new_binned_data = binned_data
+                            
+                        print(new_binned_data.shape)
 
                         image_data = new_binned_data
                         image_data_check = new_binned_data
@@ -3480,7 +3486,11 @@ class read_file_ALS(create_batch_WESPE):
                         length_list = []
                         for i in list(Bunch_d.keys()):
                             length_list.append(len(Bunch_d[i]))
-                        length_lim = np.histogram(length_list, bins=100)[-1][2]
+                        length_lim_max = np.histogram(length_list, bins=100)[-1][2]
+                        length_lim_min = 0
+                        length_list_f = np.array(length_list)[np.where(length_list<length_lim_max)[0]]
+                        if np.max(length_list_f)/np.min(length_list_f) > 3:
+                            length_lim_min = (np.max(length_list_f)-np.min(length_list_f))*0.75
 
                     if ALS_mode == 'MB':
                         for i in list(Bunch_d.keys()):
@@ -3500,7 +3510,7 @@ class read_file_ALS(create_batch_WESPE):
                                     if MB_filter is None and use_julia is False:
                                         Bunch_d_MB[i] = Bunch_d[i]
                             else:
-                                if len(Bunch_d[i]) < length_lim:
+                                if (len(Bunch_d[i]) < length_lim_max) and (len(Bunch_d[i]) > length_lim_min):
                                     image_data_b.append(list(line))
                                     Bunch_d_f[i] = Bunch_d[i]
                                 else:
@@ -5610,7 +5620,7 @@ if __name__ == "__main__":
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     run_numbers = ['run_51663']
-    run_numbers = ['Test']
+    run_numbers = ['PS_Scan_240417-run003']
     # run_numbers = ['p900417_00109']
     b = create_batch_ALS(file_dir, run_numbers)
     for i in b.batch_list:
@@ -5621,7 +5631,7 @@ if __name__ == "__main__":
         # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
         #              save='off')
         i.create_map(ordinate='MB_ID', bunch_sel=3,
-                     save='off', bunches='all', DLD_t_res=10000)
+                     save='off', bunches='all', DLD_t_res=0)
         # i.set_BE()
     b.create_map()
     # b.time_zero(t0=3539.7)
