@@ -3367,7 +3367,7 @@ class read_file_ALS(create_batch_WESPE):
                                                  DLD_delay_r.max()+y_step,
                                                  y_step)
     
-                        if MB_filter is not None and use_julia is False:
+                        if MB_filter is not None and use_julia is False and binned is False:
                             if image_data_y.shape[0] <= np.max(MB_filter):
                                 MB_filter_f = np.array(MB_filter)[np.where(np.array(MB_filter) < image_data_y.shape[0])[0]]
                             else:
@@ -3426,11 +3426,15 @@ class read_file_ALS(create_batch_WESPE):
                         else:
                             new_binned_data = binned_data
                             
-                        print(new_binned_data.shape)
-
                         image_data = new_binned_data
-                        image_data_check = new_binned_data
-                        image_data_1D = np.sum(image_data, axis=1)
+                        energy_ROI = np.sum(np.array(image_data), axis=0)
+                        energy_ROI_i = np.where(energy_ROI>np.max(energy_ROI)/2)[0]                        
+                        image_data_check = np.array(image_data)[:, energy_ROI_i]
+                        image_data_1D = np.sum(image_data_check, axis=1)
+
+                        # image_data = new_binned_data
+                        # image_data_check = new_binned_data
+                        # image_data_1D = np.sum(image_data, axis=1)
                         image_data_x = np.arange(en_ch_min,
                                                  en_ch_max+x_step,
                                                  x_step)
@@ -3450,7 +3454,7 @@ class read_file_ALS(create_batch_WESPE):
                     if binned is False:
                         threshold = np.max(image_data_1D)/10
                     else:
-                        threshold = np.max(image_data_1D)/4
+                        threshold = np.median(image_data_1D)/4.5
                     Bunch_d = {}
                     Bunch_d[bunch] = []
                     for counter, i in enumerate(image_data_1D):
@@ -3482,15 +3486,49 @@ class read_file_ALS(create_batch_WESPE):
                     Bunch_d_f = {}
                     Bunch_d_MB = {}
                     
+                    # merging bunches which are too close
+                    if ALS_mode == 'MB':
+                        check = [item for sublist in [*Bunch_d.values()] for item in sublist]
+                        check = np.ediff1d(check)
+                        Bunch_d_m = {}
+                        counter_r = 1
+                        counter_f = 1
+                        Bunch_d_m[counter_r] = [counter_f]
+                        for i in check:
+                            if i == 2:
+                                counter_f += 1
+                                Bunch_d_m[counter_r] += [counter_f]
+                            if i > 2:
+                                counter_r += 1
+                                counter_f += 1
+                                Bunch_d_m[counter_r] = [counter_f]
+
+                        Bunch_d_n = {}
+                        for key, value in Bunch_d_m.items():
+                            Bunch_d_n[key] = Bunch_d[Bunch_d_m[key][0]]
+                            if len(Bunch_d_m[key]) > 1:
+                                for j in range(1, len(Bunch_d_m[key])):
+                                    Bunch_d_n[key] = Bunch_d_n[key] + Bunch_d[Bunch_d_m[key][j]]
+
+                        Bunch_d = Bunch_d_n
+                    
                     if binned is True:
                         length_list = []
                         for i in list(Bunch_d.keys()):
                             length_list.append(len(Bunch_d[i]))
-                        length_lim_max = np.histogram(length_list, bins=100)[-1][2]
+                        length_lim_max = np.histogram(length_list, bins=150)[-1][4]
                         length_lim_min = 0
                         length_list_f = np.array(length_list)[np.where(length_list<length_lim_max)[0]]
                         if np.max(length_list_f)/np.min(length_list_f) > 3:
-                            length_lim_min = (np.max(length_list_f)-np.min(length_list_f))*0.75
+                            length_lim_min = (np.max(length_list_f)-np.min(length_list_f))*0.5 
+                        length_list_f = np.array(length_list_f)[np.where(length_list_f>length_lim_min)[0]]
+                        if len(length_list_f) != 12:
+                            length_lim_min = np.median(length_list_f)*0.8
+                            length_lim_max = np.median(length_list_f)*1.2
+                            # print(length_list_f)
+                            # print(length_lim_max)
+                            # print(length_lim_min)
+                        
 
                     if ALS_mode == 'MB':
                         for i in list(Bunch_d.keys()):
@@ -3527,7 +3565,7 @@ class read_file_ALS(create_batch_WESPE):
                             image_data_b.append(list(line))
                         Bunch_d_f = Bunch_d
 
-                    if MB_filter is None and ALS_mode == 'MB' and use_julia is False:
+                    if MB_filter is None and ALS_mode == 'MB' and use_julia is False and binned is False:
                         pads = []
                         for value in Bunch_d_MB.values():
                             if int(len(value)/100) == 0:
@@ -3544,37 +3582,14 @@ class read_file_ALS(create_batch_WESPE):
                         Bunch_d[i] = value
                         i += 1
 
-                    if ALS_mode == 'MB':
-                        check = [item for sublist in [*Bunch_d.values()] for item in sublist]
-                        check = np.ediff1d(check)
-                        Bunch_d_m = {}
-                        counter_r = 1
-                        counter_f = 1
-                        Bunch_d_m[counter_r] = [counter_f]
-                        for i in check:
-                            if i == 2:
-                                counter_f += 1
-                                Bunch_d_m[counter_r] += [counter_f]
-                            if i > 2:
-                                counter_r += 1
-                                counter_f += 1
-                                Bunch_d_m[counter_r] = [counter_f]
-
-                        Bunch_d_n = {}
-                        for key, value in Bunch_d_m.items():
-                            Bunch_d_n[key] = Bunch_d[Bunch_d_m[key][0]]
-                            if len(Bunch_d_m[key]) > 1:
-                                for j in range(1, len(Bunch_d_m[key])):
-                                    Bunch_d_n[key] = Bunch_d_n[key] + Bunch_d[Bunch_d_m[key][j]]
-
-                        Bunch_d = Bunch_d_n
-
                     # fig, ax = plt.subplots(figsize=(160, 20))
                     # ax.plot(image_data_1D)
                     # fig.suptitle(f'File {nc_name_static} - {max(Bunch_d.keys())} bunches detected', fontsize=150)
                     # for key, value in Bunch_d.items():
                     #     ax.plot(value, np.array(image_data_1D)[value],
                     #             'X', markersize=25, linewidth=1)
+                        
+                    # ax.axhline(threshold)
                     # plt.show()
                     # plt.clf()
                     # plt.close()
@@ -3618,7 +3633,10 @@ class read_file_ALS(create_batch_WESPE):
                             plt.close()
                         print(f'***File {nc_name_static} - {max(Bunch_d.keys())} bunches detected***')
                     else:
-                        DLD_t_res += 500
+                        if DLD_t_res == 0:
+                            DLD_t_res += 20000
+                        else:
+                            DLD_t_res += 500
                         MB_filter = None
                         if __name__ == "__main__":
                             fig, ax = plt.subplots(figsize=(160, 20))
@@ -3627,6 +3645,7 @@ class read_file_ALS(create_batch_WESPE):
                             for key, value in Bunch_d_f.items():
                                 ax.plot(value, np.array(image_data_1D)[value],
                                         'X', markersize=25, linewidth=1)
+                            # ax.axhline(threshold)
                             plt.show()
                             plt.clf()
                             plt.close()
@@ -5620,39 +5639,54 @@ if __name__ == "__main__":
     # run_numbers = ['run_50103_50104_50105_50106']
     # run_numbers= ['p005639_00016_2']
     run_numbers = ['run_51663']
-    run_numbers = ['PS_Scan_240417-run003']
+    run_numbers = ['PS_Scan_240417-run104']
     # run_numbers = ['p900417_00109']
-    b = create_batch_ALS(file_dir, run_numbers)
-    for i in b.batch_list:
-        # i.Bunch_filter([0.4,0.9], B_type='x')
-        # i.Bunch_filter([0.4,0.9], B_type='y')
-        # i.Bunch_filter([4,4.27], B_type='t')
-        # i.Bunch_filter([34,36], B_type='t')
-        # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
-        #              save='off')
-        i.create_map(ordinate='MB_ID', bunch_sel=3,
-                     save='off', bunches='all', DLD_t_res=0)
-        # i.set_BE()
-    b.create_map()
-    # b.time_zero(t0=3539.7)
-    # b.save_map_dat()
-    # b.norm_total_e()
-    # b.set_Tds()
-    # b.set_BE()
-    # b.set_KE()
-    # b.set_BE()
-    # b.set_T0()
-    # b.set_KE()
-    # b.ROI([102,97.5], axis='Dim_x', mod_map=True)
-    # c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
-    c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
-    # c.align_cuts()
-    # c.dif_plot()
-    # c.correlate_i()
-    # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-    p = plot_files([b,c], dif_3D=False)
-    p.legend_plot()
-    p.span_plot(c)
+    
+    listdir = sorted(os.listdir(file_dir))
+    listdir_static = listdir.copy()
+    for i in listdir_static:
+        if 'PS_Scan' not in i:
+            listdir.remove(i)
+            
+    issues=[]
+            
+    for j in listdir:
+        try:
+            b = create_batch_ALS(file_dir, [j])
+            for i in b.batch_list:
+                # i.Bunch_filter([0.4,0.9], B_type='x')
+                # i.Bunch_filter([0.4,0.9], B_type='y')
+                # i.Bunch_filter([4,4.27], B_type='t')
+                # i.Bunch_filter([34,36], B_type='t')
+                # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
+                #              save='off')
+                i.create_map(ordinate='MB_ID', bunch_sel=2,
+                             save='off', bunches='all', DLD_t_res=0)
+                # i.set_BE()
+            b.create_map()
+            # b.time_zero(t0=3539.7)
+            # b.save_map_dat()
+            # b.norm_total_e()
+            # b.set_Tds()
+            # b.set_BE()
+            # b.set_KE()
+            # b.set_BE()
+            # b.set_T0()
+            # b.set_KE()
+            # b.ROI([102,97.5], axis='Dim_x', mod_map=True)
+            # c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
+            # c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
+            # c.align_cuts()
+            # c.dif_plot()
+            # c.correlate_i()
+            # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
+            p = plot_files([b], dif_3D=False)
+            p.legend_plot()
+            plt.show()
+        except:
+            print(f'{j} raised an error')
+            issues.append(j)
+    # p.span_plot(c)
 else:
     # Loading configs from json file.
     try:
