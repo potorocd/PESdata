@@ -3187,6 +3187,10 @@ class read_file_ALS(create_batch_WESPE):
                 for i in list(loaded_map.variables.keys()):
                     if 'Run' in i:
                         data_name = i
+                        try:
+                            DLD_t_res = loaded_map[i].attrs['DLD_t_res']
+                        except:
+                            DLD_t_res = None
 
                 image_data = loaded_map.variables[data_name].values
                 try:
@@ -3237,7 +3241,8 @@ class read_file_ALS(create_batch_WESPE):
                                 'y_order_rec_a': not y_order_rec,
                                 'x_alt': False,
                                 'y_alt': False,
-                                'Normalized': False}
+                                'Normalized': False,
+                                'DLD_t_res': DLD_t_res}
 
                 if isinstance(bunches, int):
                     Map_2D = Map_2D.loc[0:bunches]
@@ -3438,7 +3443,8 @@ class read_file_ALS(create_batch_WESPE):
                         image_data_x = np.arange(en_ch_min,
                                                  en_ch_max+x_step,
                                                  x_step)
-                        
+                        # plt.plot(np.sum(image_data, axis=1)[30000:])
+                        # plt.show()
 
                     if ALS_mode is None:
                         if np.median(image_data_1D) < np.max(image_data_1D)*0.3:
@@ -3522,7 +3528,7 @@ class read_file_ALS(create_batch_WESPE):
                         if np.max(length_list_f)/np.min(length_list_f) > 3:
                             length_lim_min = (np.max(length_list_f)-np.min(length_list_f))*0.5 
                         length_list_f = np.array(length_list_f)[np.where(length_list_f>length_lim_min)[0]]
-                        if len(length_list_f) != 12:
+                        if len(length_list_f) != measured_periods:
                             length_lim_min = np.median(length_list_f)*0.8
                             length_lim_max = np.median(length_list_f)*1.2
                             # print(length_list_f)
@@ -3589,7 +3595,7 @@ class read_file_ALS(create_batch_WESPE):
                     #     ax.plot(value, np.array(image_data_1D)[value],
                     #             'X', markersize=25, linewidth=1)
                         
-                    # ax.axhline(threshold)
+                    # # ax.axhline(threshold)
                     # plt.show()
                     # plt.clf()
                     # plt.close()
@@ -3709,7 +3715,8 @@ class read_file_ALS(create_batch_WESPE):
                                 'y_order_rec_a': not y_order_rec,
                                 'x_alt': False,
                                 'y_alt': False,
-                                'Normalized': False}
+                                'Normalized': False,
+                                'DLD_t_res': DLD_t_res}
                 Map_2D.name = 'Run ' + '_' + date + '_' + run_num + '_' + ps_str_list[counter_g]
 
                 if isinstance(bunches, int):
@@ -3815,6 +3822,7 @@ class read_file_ALS(create_batch_WESPE):
             shape = total_map.coords['Dim_y'].values.shape[0]
             total_map.coords['Delay index'] = ('Dim_y', np.arange(shape))
             total_map.attrs['y_label'] = 'Phase shifter values'
+            total_map.attrs['y_units'] = 'ps'
 
         if np.min(total_map.values.shape) == 0:
             total_map.attrs['Merge successful'] = False
@@ -4713,18 +4721,29 @@ class map_cut:
         data_step = np.gradient(self.Map_2D_plot.coords['Dim_x'].values)[0]
         delay = self.Map_2D_plot.coords['Dim_y'].values
         file = read_file_ALS(self.file_full)
+        
+        try:
+            DLD_t_res = self.obj.Map_2D_plot.attrs['DLD_t_res']
+        except:
+            DLD_t_res = None
 
         if b_sel is None:
-            file.create_map(ordinate='delay', bunch_sel=self.bunch_sel-1)
+            file.create_map(ordinate='delay',
+                            bunch_sel=self.bunch_sel-1,
+                            DLD_t_res=DLD_t_res)
         elif type(b_sel) == int or type(b_sel) == str:
             if b_sel == 'prev':
                 file.create_map(ordinate='delay',
-                                bunch_sel=f'1,{self.bunch_sel-1}')
+                                bunch_sel=f'1,{self.bunch_sel-1}',
+                                DLD_t_res=DLD_t_res)
             else:
-                file.create_map(ordinate='delay', bunch_sel=b_sel)
+                file.create_map(ordinate='delay',
+                                bunch_sel=b_sel,
+                                DLD_t_res=DLD_t_res)
         elif type(b_sel) == list:
             file.create_map(ordinate='delay',
-                            bunch_sel=f'{min(b_sel)},{max(b_sel)}')
+                            bunch_sel=f'{min(b_sel)},{max(b_sel)}',
+                            DLD_t_res=DLD_t_res)
         else:
             raise ValueError('Check input values!')
 
@@ -4773,20 +4792,31 @@ class map_cut:
         self.cor = True
 
     def correlate_total(self, step=0.01, c_f=0.1, b_sel=None):
+        try:
+            DLD_t_res = self.obj.Map_2D_plot.attrs['DLD_t_res']
+        except:
+            DLD_t_res = None
+
         file = read_file_ALS(self.file_full)
         file.create_map(ordinate='MB_ID')
         b_ID = file.Map_2D_plot.coords['Dim_y'].values
         if b_sel is None:
-            file.create_map(ordinate='delay', bunch_sel=self.bunch_sel-1)
+            file.create_map(ordinate='delay',
+                            bunch_sel=self.bunch_sel-1,
+                            DLD_t_res=DLD_t_res)
         elif type(b_sel) == int or type(b_sel) == str:
             if b_sel == 'prev':
                 file.create_map(ordinate='delay',
-                                bunch_sel=f'1,{self.bunch_sel-1}')
+                                bunch_sel=f'1,{self.bunch_sel-1}',
+                                DLD_t_res=DLD_t_res)
             else:
-                file.create_map(ordinate='delay', bunch_sel=b_sel)
+                file.create_map(ordinate='delay',
+                                bunch_sel=b_sel,
+                                DLD_t_res=DLD_t_res)
         elif type(b_sel) == list:
             file.create_map(ordinate='delay',
-                            bunch_sel=f'{min(b_sel)},{max(b_sel)}')
+                            bunch_sel=f'{min(b_sel)},{max(b_sel)}',
+                            DLD_t_res=DLD_t_res)
         else:
             raise ValueError('Check input values!')
 
@@ -4805,7 +4835,9 @@ class map_cut:
         data_file = read_file_ALS(self.file_full)
         shift_total = []
         for j in b_ID:
-            data_file.create_map(ordinate='delay', bunch_sel=j)
+            data_file.create_map(ordinate='delay',
+                                 bunch_sel=j,
+                                 DLD_t_res=DLD_t_res)
             if self.Map_2D_plot.attrs['x_alt'] is True:
                 data_file.set_BE()
             data_file.ROI(lims, axis='Dim_x')
@@ -5645,8 +5677,10 @@ if __name__ == "__main__":
     listdir = sorted(os.listdir(file_dir))
     listdir_static = listdir.copy()
     for i in listdir_static:
-        if 'PS_Scan' not in i:
+        if 'PS_Scan_240419-run002' not in i:
             listdir.remove(i)
+        # if '078' not in i:
+        #     listdir.remove(i)
             
     issues=[]
             
@@ -5660,27 +5694,28 @@ if __name__ == "__main__":
                 # i.Bunch_filter([34,36], B_type='t')
                 # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
                 #              save='off')
-                i.create_map(ordinate='MB_ID', bunch_sel=2,
-                             save='off', bunches='all', DLD_t_res=0)
+                i.create_map(ordinate='delay', bunch_sel=2,
+                             save='off', bunches='all', DLD_t_res=20000)
                 # i.set_BE()
             b.create_map()
             # b.time_zero(t0=3539.7)
             # b.save_map_dat()
-            # b.norm_total_e()
+            b.norm_total_e()
             # b.set_Tds()
             # b.set_BE()
             # b.set_KE()
             # b.set_BE()
             # b.set_T0()
             # b.set_KE()
-            # b.ROI([102,97.5], axis='Dim_x', mod_map=True)
+            b.ROI([30,85], axis='Dim_x', mod_map=True)
             # c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
-            # c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
+            c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
             # c.align_cuts()
             # c.dif_plot()
-            # c.correlate_i()
+            c.correlate_b(b_sel=1)
+            c.make_fit()
             # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-            p = plot_files([b], dif_3D=False)
+            p = plot_files([b,c], dif_3D=False)
             p.legend_plot()
             plt.show()
         except:
