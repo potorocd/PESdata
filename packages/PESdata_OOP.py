@@ -4791,14 +4791,16 @@ class map_cut:
         self.axis = 'Dim_x'
         self.cor = True
 
-    def correlate_total(self, step=0.01, c_f=0.1, b_sel=None):
+    def correlate_total(self, step=0.01, c_f=0.1, b_sel=None,
+                        real_time=False, period = 656168):
         try:
             DLD_t_res = self.obj.Map_2D_plot.attrs['DLD_t_res']
         except:
             DLD_t_res = None
 
         file = read_file_ALS(self.file_full)
-        file.create_map(ordinate='MB_ID')
+        file.create_map(ordinate='MB_ID',
+                        DLD_t_res=DLD_t_res)
         b_ID = file.Map_2D_plot.coords['Dim_y'].values
         if b_sel is None:
             file.create_map(ordinate='delay',
@@ -4828,12 +4830,14 @@ class map_cut:
 
         EDC = file.Map_2D_plot.values
         EDC_x = self.Map_2D_plot.coords['Dim_x'].values
+        PS_values = file.Map_2D_plot.coords['Dim_y'].values[::-1]
         EDC_y = EDC
         EDC_x_step = np.arange(read_file_ALS.rounding(EDC_x.min(), step),
                           read_file_ALS.rounding(EDC_x.max(), step), step)
 
         data_file = read_file_ALS(self.file_full)
         shift_total = []
+        PS_values_total = []
         for j in b_ID:
             data_file.create_map(ordinate='delay',
                                  bunch_sel=j,
@@ -4871,17 +4875,36 @@ class map_cut:
                 shift.append(lag)
             # if np.median(shift) < 0:
             #     shift = -np.array(shift)
-            if j == self.bunch_sel:
-                value = np.max(shift)
-            else:
-                value = np.mean(shift)
-            shift_total.append(value)
-        self.coords = b_ID
+            # if j == self.bunch_sel:
+            #     # value = np.max(shift)
+            #     value = np.array(shift).flat[np.abs(shift).argmax()]
+            # else:
+            #     value = np.mean(shift)
+            shift_total.append(shift[::-1])
+            PS_values_total.append(PS_values+period*(np.max(b_ID)-j))
+        shift_total = np.array(shift_total).flatten()
+        PS_values_total = np.array(PS_values_total).flatten()
+
         self.cuts = [list(shift_total)]
         self.axis = 'Dim_x'
         self.t_axis = 'Delay relative t0'
         self.cor = True
         self.ordinate = 'MB_ID'
+
+        if real_time is True:
+            self.coords = list(PS_values_total/1000000)
+            self.cut_info.attrs['y_label'] = 'Phase shifter values'
+            self.cut_info.attrs['y_units'] = 'μs'
+            self.cut_info.attrs['y_label_a'] = 'Delay'
+            self.cut_info.attrs['y_units_a'] = 'μs'
+        else:
+            self.coords = np.arange(shift_total.shape[0])
+            self.cut_info.attrs['y_order_rec'] = True
+            self.cut_info.attrs['y_order_rec_a'] = False
+            self.cut_info.attrs['y_label'] = 'Index'
+            self.cut_info.attrs['y_units'] = 'units'
+            self.cut_info.attrs['y_label_a'] = 'Index'
+            self.cut_info.attrs['y_units_a'] = 'units'
 
     def make_fit(self):
         '''
@@ -5677,14 +5700,14 @@ if __name__ == "__main__":
     listdir = sorted(os.listdir(file_dir))
     listdir_static = listdir.copy()
     for i in listdir_static:
-        if 'PS_Scan_240419-run002' not in i:
+        if 'PS_Scan' not in i:
             listdir.remove(i)
         # if '078' not in i:
         #     listdir.remove(i)
             
     issues=[]
             
-    for j in listdir:
+    for j in listdir[12:]:
         try:
             b = create_batch_ALS(file_dir, [j])
             for i in b.batch_list:
@@ -5712,8 +5735,8 @@ if __name__ == "__main__":
             c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
             # c.align_cuts()
             # c.dif_plot()
-            c.correlate_b(b_sel=1)
-            c.make_fit()
+            c.correlate_total(b_sel=1)
+            # c.make_fit()
             # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
             p = plot_files([b,c], dif_3D=False)
             p.legend_plot()
