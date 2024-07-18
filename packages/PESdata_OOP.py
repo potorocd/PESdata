@@ -1076,7 +1076,11 @@ class create_batch_WESPE:
             if len(run_list) == 1:
                 run_string = f'Run {run_list_s[0]}'
             elif len(run_list) > 4:
-                run_string = f'Runs {np.min(run_list)}-{np.max(run_list)}'
+                try:
+                    run_string = f'Runs {np.min(run_list)}-{np.max(run_list)}'
+                except:
+                    run_list = [int(i.split('_')[-1]) for i in run_list]
+                    run_string = f'Runs {np.min(run_list)}-{np.max(run_list)}'
             else:
                 run_list_s = [str(i) for i in run_list_s]
                 run_string = ', '.join(run_list_s)
@@ -4792,7 +4796,7 @@ class map_cut:
         self.cor = True
 
     def correlate_total(self, step=0.01, c_f=0.1, b_sel=None,
-                        real_time=False, period = 656168):
+                        real_time=True, period = 656168):
         try:
             DLD_t_res = self.obj.Map_2D_plot.attrs['DLD_t_res']
         except:
@@ -5455,7 +5459,7 @@ class map_cut:
             y_units = self.cut_info.attrs['y_units']
             y_order = self.cut_info.attrs['y_order_rec']
 
-        with open(path+"Summary.txt", "w") as text_file:
+        with open(path+"Summary.txt", "w", encoding="utf-8") as text_file:
             text_file.write(f'Loaded runs: {self.run_num_o}\n')
             text_file.write(f'Cuts across: {self.axis}\n')
             positions_str = [str(i) for i in self.positions]
@@ -5481,10 +5485,11 @@ class map_cut:
         for i in range(length):
             x = self.coords
             x = list(x)
-            if self.axis == 'Dim_x':
-                x = [read_file_WESPE.rounding(i, self.y_step) for i in x]
-            else:
-                x = [read_file_WESPE.rounding(i, self.x_step) for i in x]
+            if self.cor is False:
+                if self.axis == 'Dim_x':
+                    x = [read_file_WESPE.rounding(i, self.y_step) for i in x]
+                else:
+                    x = [read_file_WESPE.rounding(i, self.x_step) for i in x]
             x = np.array(x)
             x = np.expand_dims(x, axis=0)
             y = arr[i]
