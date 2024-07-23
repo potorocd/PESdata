@@ -12,6 +12,7 @@ import os
 os.environ["KIVY_NO_CONSOLELOG"] = "1"
 # Configs must be set up before loading the app
 from kivy.config import Config
+Config.set('kivy', 'log_enable', 0)
 Config.set('graphics', 'resizable', True)
 Config.set('graphics', 'fullscreen', 'False')
 Config.set('graphics', 'window_state', 'maximized')
