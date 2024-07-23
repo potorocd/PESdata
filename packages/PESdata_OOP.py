@@ -4341,6 +4341,7 @@ class read_file_ibw(create_batch_WESPE):
         self.Map_2D = Map_2D
         if len(self.Map_2D.shape) == 3:
             if self.Fermi is True:
+                '''
                 if self.Fermi_lim is not None:
                     y_n = np.max(self.Map_2D.coords['Energy'].values)
                     Fermi_l = np.min(self.Fermi_lim)
@@ -4353,100 +4354,168 @@ class read_file_ibw(create_batch_WESPE):
                         Fermi_h = y_n - self.Fermi_lim[0] + abs(self.Fermi_lim[1])/2
                     self.Map_2D = self.Map_2D.loc[Fermi_l:Fermi_h, :, :]
                 self.Map_2D = self.Map_2D.sum(dim='Energy')
-            elif self.Seq is True:
-                self.Map_2D = self.Map_2D.sum(dim='Momentum')
-        if len(self.Map_2D.shape) == 2:
-            if self.Fermi is True:
-                image_data = self.Map_2D.values
+                '''
+                image_data = self.Map_2D.values.transpose(1,2,0)
                 image_data = image_data[::-1]
                 image_data_x = self.Map_2D.coords['Polar'].values
                 image_data_y = self.Map_2D.coords['Momentum'].values
                 image_data_y = image_data_y[::-1]
+                
+                image_data_z = self.Map_2D.coords['Energy'].values
+                
                 extent = [np.min(image_data_x), np.max(image_data_x),
                           np.min(image_data_y), np.max(image_data_y)]
                 x_label = 'Polar angle'
                 y_label = 'Emission angle'
+                z_label = 'Kinetic energy'
+                
                 x_units = 'deg'
                 y_units = 'deg'
+                z_units = 'eV'
+                
                 x_label_a = 'Polar angle'
                 y_label_a = 'Emission angle'
+                z_label_a = 'Kinetic energy'
+                
                 x_units_a = 'deg'
                 y_units_a = 'deg'
+                z_units_a = 'eV'
+                
                 x_order_rec = False
                 y_order_rec = True
+                z_order_rec = False
+                
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y),
+                          z_label: ("Dim_z", image_data_z)}
+
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x", "Dim_z"],
+                                      coords=coords)
+                Map_2D.coords["Dim_z"] = Map_2D.coords[z_label]
+
+                Map_2D.name = self.file_name
+    
+                Map_2D.coords['Dim_x'] = Map_2D.coords[x_label]
+                Map_2D.coords['Dim_y'] = Map_2D.coords[y_label]
+    
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False,
+                                'z_label': z_label,
+                                'z_units': z_units,
+                                'z_order_rec': z_order_rec,
+                                'z_label_a': z_label_a,
+                                'z_units_a': z_units_a,
+                                'z_order_rec_a': not z_order_rec,
+                                'z_alt': False}
             elif self.Seq is True:
-                image_data = self.Map_2D.values
-                image_data = np.rot90(image_data, 3)[::, ::-1]
-                image_data = image_data[::-1]
-                image_data_x = self.Map_2D.coords['Energy'].values
-                image_data_y = self.Map_2D.coords['Step'].values
-                image_data_y = image_data_y[::-1]
-                extent = [np.min(image_data_x), np.max(image_data_x),
-                          np.min(image_data_y), np.max(image_data_y)]
-                x_label = 'Kinetic energy'
-                y_label = 'Sequence'
-                x_units = 'eV'
-                y_units = 'units'
-                x_label_a = 'Binding energy'
-                y_label_a = 'Sequence'
-                x_units_a = 'eV'
-                y_units_a = 'units'
-                x_order_rec = False
-                y_order_rec = True
-                image_data_x_a = self.hv - image_data_x - 4.5
-            else:
-                image_data = self.Map_2D.values
-                image_data = image_data[::-1]
-                image_data_x = self.Map_2D.coords['Momentum'].values
-                image_data_y = self.Map_2D.coords['Energy'].values
-                image_data_y = image_data_y[::-1]
-                extent = [np.min(image_data_x), np.max(image_data_x),
-                          np.min(image_data_y), np.max(image_data_y)]
-                x_label = 'Emission angle'
-                y_label = 'Kinetic energy'
-                x_units = 'deg'
-                y_units = 'eV'
-                x_label_a = 'Emission angle'
-                y_label_a = 'Kinetic energy'
-                x_units_a = 'deg'
-                y_units_a = 'eV'
-                x_order_rec = False
-                y_order_rec = True
-
-        coords = {x_label: ("Dim_x", image_data_x),
-                  y_label: ("Dim_y", image_data_y)}
-        if len(image_data.shape) > 2:
-            image_data = np.sum(image_data, axis=2)
-        Map_2D = xr.DataArray(np.array(image_data),
-                                dims=["Dim_y", "Dim_x"],
-                                coords=coords)
-        Map_2D.coords["Dim_y"] = Map_2D.coords[y_label]
-        Map_2D.coords["Dim_x"] = Map_2D.coords[x_label]
-
-        try:
-            Map_2D.coords[x_label_a] = ('Dim_x', image_data_x_a)
-        except:
-            pass
-        try:
-            Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
-        except:
-            pass
-
-        Map_2D.attrs = {'x_label': x_label,
-                        'x_units': x_units,
-                        'x_order_rec': x_order_rec,
-                        'y_label': y_label,
-                        'y_units': y_units,
-                        'y_order_rec': y_order_rec,
-                        'x_label_a': x_label_a,
-                        'x_units_a': x_units_a,
-                        'x_order_rec_a': not x_order_rec,
-                        'y_label_a': y_label_a,
-                        'y_units_a': y_units_a,
-                        'y_order_rec_a': not y_order_rec,
-                        'x_alt': False,
-                        'y_alt': False,
-                        'Normalized': False}
+                self.Map_2D = self.Map_2D.sum(dim='Momentum')
+        else:
+            if len(self.Map_2D.shape) == 2:
+                if self.Fermi is True:
+                    image_data = self.Map_2D.values
+                    image_data = image_data[::-1]
+                    image_data_x = self.Map_2D.coords['Polar'].values
+                    image_data_y = self.Map_2D.coords['Momentum'].values
+                    image_data_y = image_data_y[::-1]
+                    extent = [np.min(image_data_x), np.max(image_data_x),
+                              np.min(image_data_y), np.max(image_data_y)]
+                    x_label = 'Polar angle'
+                    y_label = 'Emission angle'
+                    x_units = 'deg'
+                    y_units = 'deg'
+                    x_label_a = 'Polar angle'
+                    y_label_a = 'Emission angle'
+                    x_units_a = 'deg'
+                    y_units_a = 'deg'
+                    x_order_rec = False
+                    y_order_rec = True
+                elif self.Seq is True:
+                    image_data = self.Map_2D.values
+                    image_data = np.rot90(image_data, 3)[::, ::-1]
+                    image_data = image_data[::-1]
+                    image_data_x = self.Map_2D.coords['Energy'].values
+                    image_data_y = self.Map_2D.coords['Step'].values
+                    image_data_y = image_data_y[::-1]
+                    extent = [np.min(image_data_x), np.max(image_data_x),
+                              np.min(image_data_y), np.max(image_data_y)]
+                    x_label = 'Kinetic energy'
+                    y_label = 'Sequence'
+                    x_units = 'eV'
+                    y_units = 'units'
+                    x_label_a = 'Binding energy'
+                    y_label_a = 'Sequence'
+                    x_units_a = 'eV'
+                    y_units_a = 'units'
+                    x_order_rec = False
+                    y_order_rec = True
+                    image_data_x_a = self.hv - image_data_x - 4.5
+                else:
+                    image_data = self.Map_2D.values
+                    image_data = image_data[::-1]
+                    image_data_x = self.Map_2D.coords['Momentum'].values
+                    image_data_y = self.Map_2D.coords['Energy'].values
+                    image_data_y = image_data_y[::-1]
+                    extent = [np.min(image_data_x), np.max(image_data_x),
+                              np.min(image_data_y), np.max(image_data_y)]
+                    x_label = 'Emission angle'
+                    y_label = 'Kinetic energy'
+                    x_units = 'deg'
+                    y_units = 'eV'
+                    x_label_a = 'Emission angle'
+                    y_label_a = 'Kinetic energy'
+                    x_units_a = 'deg'
+                    y_units_a = 'eV'
+                    x_order_rec = False
+                    y_order_rec = False
+    
+            coords = {x_label: ("Dim_x", image_data_x),
+                      y_label: ("Dim_y", image_data_y)}
+            if len(image_data.shape) > 2:
+                image_data = np.sum(image_data, axis=2)
+            Map_2D = xr.DataArray(np.array(image_data),
+                                    dims=["Dim_y", "Dim_x"],
+                                    coords=coords)
+            Map_2D.coords["Dim_y"] = Map_2D.coords[y_label]
+            Map_2D.coords["Dim_x"] = Map_2D.coords[x_label]
+    
+            try:
+                Map_2D.coords[x_label_a] = ('Dim_x', image_data_x_a)
+            except:
+                pass
+            try:
+                Map_2D.coords[y_label_a] = ('Dim_y', image_data_y_a)
+            except:
+                pass
+    
+            Map_2D.attrs = {'x_label': x_label,
+                            'x_units': x_units,
+                            'x_order_rec': x_order_rec,
+                            'y_label': y_label,
+                            'y_units': y_units,
+                            'y_order_rec': y_order_rec,
+                            'x_label_a': x_label_a,
+                            'x_units_a': x_units_a,
+                            'x_order_rec_a': not x_order_rec,
+                            'y_label_a': y_label_a,
+                            'y_units_a': y_units_a,
+                            'y_order_rec_a': not y_order_rec,
+                            'x_alt': False,
+                            'y_alt': False,
+                            'Normalized': False}
         self.Map_2D = Map_2D
         self.Map_2D_plot = Map_2D
         self.y_step = self.Map_2D.coords['Dim_y'].values
@@ -5688,68 +5757,42 @@ if __name__ == "__main__":
     config = json.loads(config,
                         object_hook=lambda d: SimpleNamespace(**d))
 
-    file_dir = r'D:\Data\Example HEXTOF'
     file_dir = r'D:\Data\MM December 23'
     file_dir = r'D:\Data\HEXTOF'
     # file_dir = r'D:\Data\SXP'
     file_dir = r'D:\Data\ALS 24'
+    file_dir = r'D:\Data\Fink Sep.2021'
+    # file_dir = r'D:\Data\10_BESSY_Fink'
     run_numbers = ['run_50032_50033_50041']
     # run_numbers = [44824,44825,44826,44827]
-    # run_numbers = ['run_50032_50033_50041_50042_50044_50053']
-    # run_numbers = ['run_50103_50104_50105_50106']
-    # run_numbers= ['p005639_00016_2']
     run_numbers = ['run_51663']
     run_numbers = ['PS_Scan_240417-run104']
-    # run_numbers = ['p900417_00109']
+    run_numbers = ['W_0058w058_Fermi_surface_Na']
+    run_numbers = ['K_0008_008']
     
     listdir = sorted(os.listdir(file_dir))
     listdir_static = listdir.copy()
     for i in listdir_static:
-        if 'PS_Scan' not in i:
+        if '.ibw' not in i:
             listdir.remove(i)
         # if '078' not in i:
         #     listdir.remove(i)
             
     issues=[]
-            
-    for j in listdir[12:]:
+    
+    for j in listdir:
         try:
-            b = create_batch_ALS(file_dir, [j])
+            b = create_batch_ibw(file_dir, [j.replace('.ibw', '')])
             for i in b.batch_list:
-                # i.Bunch_filter([0.4,0.9], B_type='x')
-                # i.Bunch_filter([0.4,0.9], B_type='y')
-                # i.Bunch_filter([4,4.27], B_type='t')
-                # i.Bunch_filter([34,36], B_type='t')
-                # i.create_map(ordinate='td', energy_step=0.001, delay_step=0.5, z_step=50,
-                #              save='off')
-                i.create_map(ordinate='delay', bunch_sel=2,
-                             save='off', bunches='all', DLD_t_res=20000)
-                # i.set_BE()
+                i.create_map()
             b.create_map()
-            # b.time_zero(t0=3539.7)
-            # b.save_map_dat()
-            b.norm_total_e()
-            # b.set_Tds()
-            # b.set_BE()
-            # b.set_KE()
-            # b.set_BE()
-            # b.set_T0()
-            # b.set_KE()
-            b.ROI([30,85], axis='Dim_x', mod_map=True)
-            # c = map_cut(b, list(b.Map_2D_plot.coords['Dim_y'].values[::2]), [1], axis='Dim_y', approach='mean')
-            c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
-            # c.align_cuts()
-            # c.dif_plot()
-            c.correlate_total(b_sel=1)
-            # c.make_fit()
-            # b.ROI([0.4,0.9], axis='Dim_y', mod_map=True)
-            p = plot_files([b,c], dif_3D=False)
-            p.legend_plot()
+            # c = map_cut(b, 6.5, [10], axis='Dim_y', approach='mean')
+            p = plot_files([b], dif_3D=False)
             plt.show()
+            # p.span_plot(c)
         except:
-            print(f'{j} raised an error')
             issues.append(j)
-    # p.span_plot(c)
+
 else:
     # Loading configs from json file.
     try:
