@@ -4422,7 +4422,76 @@ class read_file_ibw(create_batch_WESPE):
                                 'z_order_rec_a': not z_order_rec,
                                 'z_alt': False}
             elif self.Seq is True:
-                self.Map_2D = self.Map_2D.sum(dim='Momentum')
+                image_data = self.Map_2D.values.transpose(1,0,2)
+                image_data = image_data[::-1]
+                image_data_x = self.Map_2D.coords['Energy'].values
+                image_data_y = self.Map_2D.coords['Momentum'].values
+                image_data_y = image_data_y[::-1]
+                
+                image_data_z = self.Map_2D.coords['Step'].values
+                
+                extent = [np.min(image_data_x), np.max(image_data_x),
+                          np.min(image_data_y), np.max(image_data_y)]
+                x_label = 'Kinetic energy'
+                y_label = 'Emission angle'
+                z_label = 'Sequence'
+                
+                x_units = 'eV'
+                y_units = 'deg'
+                z_units = 'a.u.'
+                
+                x_label_a = 'Kinetic energy'
+                y_label_a = 'Emission angle'
+                z_label_a = 'Sequence'
+                
+                x_units_a = 'eV'
+                y_units_a = 'deg'
+                z_units_a = 'a.u.'
+                
+                x_order_rec = False
+                y_order_rec = True
+                z_order_rec = False
+                
+                coords = {x_label: ("Dim_x", image_data_x),
+                          y_label: ("Dim_y", image_data_y),
+                          z_label: ("Dim_z", image_data_z)}
+
+                Map_2D = xr.DataArray(np.array(image_data),
+                                      dims=["Dim_y", "Dim_x", "Dim_z"],
+                                      coords=coords)
+                Map_2D.coords["Dim_z"] = Map_2D.coords[z_label]
+
+                Map_2D.name = self.file_name
+    
+                Map_2D.coords['Dim_x'] = Map_2D.coords[x_label]
+                Map_2D.coords['Dim_y'] = Map_2D.coords[y_label]
+    
+                Map_2D.attrs = {'x_label': x_label,
+                                'x_units': x_units,
+                                'x_order_rec': x_order_rec,
+                                'y_label': y_label,
+                                'y_units': y_units,
+                                'y_order_rec': y_order_rec,
+                                'x_label_a': x_label_a,
+                                'x_units_a': x_units_a,
+                                'x_order_rec_a': not x_order_rec,
+                                'y_label_a': y_label_a,
+                                'y_units_a': y_units_a,
+                                'y_order_rec_a': not y_order_rec,
+                                'x_alt': False,
+                                'y_alt': False,
+                                'Normalized': False,
+                                'z_label': z_label,
+                                'z_units': z_units,
+                                'z_order_rec': z_order_rec,
+                                'z_label_a': z_label_a,
+                                'z_units_a': z_units_a,
+                                'z_order_rec_a': not z_order_rec,
+                                'z_alt': False}
+                attrs = Map_2D.attrs
+                # Map_2D = Map_2D.sum('Dim_z')
+                Map_2D.attrs = attrs
+                # self.Map_2D = self.Map_2D.sum(dim='Momentum')
         else:
             if len(self.Map_2D.shape) == 2:
                 if self.Fermi is True:
