@@ -2301,10 +2301,19 @@ class read_file_MM(create_batch_WESPE):
             self.static = int(self.run_num.split('_')[-1])
         self.DLD = DLD
         
+        # try:
+        #     self.DLD_energy = -f['energy'].values
+        # except:
+        #     try:
+        #         self.DLD_energy = f['dldTime'].values/1000
+        #     except:
+        #         self.DLD_energy = f['dldTimeSteps'].values/1000
+                
         try:
             self.DLD_energy = f['dldTime'].values/1000
         except:
             self.DLD_energy = f['dldTimeSteps'].values/1000
+
         try:
             self.x = f['x']/1000
             self.y = f['y']/1000
@@ -2501,9 +2510,6 @@ class read_file_MM(create_batch_WESPE):
         save_path = save_path + f"_{self.Macro_B_filter}"
         save_path = save_path + f"_{self.Micro_B_filter}.nc"
         try:
-            # if self.ordinate != 'delay':
-            #     raise FileNotFoundError
-
             if save != 'on':
                 raise FileNotFoundError
 
@@ -2642,11 +2648,6 @@ class read_file_MM(create_batch_WESPE):
                                             return bincounts(Hist3D((x_a,y_a,z_a), (x,y,z)))
                                         end
                                         ''')
-                rounding_jl = jl.eval('''
-                                      function rounding_jl(x,y)
-                                            return floor.(x./y).*y .+ ((x./y .- floor.(x./y)) .>= 0.5).*y
-                                        end
-                                    ''')
                 use_julia = True
                 julia_end = timer()
                 print('***Julia-enabled mode***')
@@ -2656,9 +2657,6 @@ class read_file_MM(create_batch_WESPE):
                 use_julia = False
                 print('***All-Python mode***')
 
-            if self.switch_3D is True and use_julia is False:
-                raise Exception('***For 3D histogramming, please set up Julia-enabled mode***')
-
             start = timer()
             '''
             This part is supposed to filter artifact values
@@ -2666,13 +2664,15 @@ class read_file_MM(create_batch_WESPE):
             '''
             for j in ['DLD_energy', 'DLD_delay']:
                 i = getattr(self, j)
-                mean = np.mean(i)
-                std = np.std(i)
-                min_list = np.where(i < mean-3*std)
+                median = np.median(i)
+                mad = np.median(np.abs(i - median))
+                std = 1.4826 * mad
+                print(median, std)
+                min_list = np.where(i < median - 3*std)
                 if j == 'DLD_energy' and self.mono_mean > 100:
                     max_list = np.where(i > self.mono_mean + 50)
                 else:
-                    max_list = np.where(i > mean+3*std)
+                    max_list = np.where(i > median + 3*std)
                 del_list = np.append(min_list, max_list)
                 if del_list.size != 0:
                     self.DLD_energy = np.delete(self.DLD_energy, del_list)
@@ -2698,29 +2698,18 @@ class read_file_MM(create_batch_WESPE):
             DLD_energy = getattr(self, self.unit_dict[ordinate[0]][3])
             parameter = getattr(self, self.unit_dict[ordinate[1]][3])
             if self.switch_3D is True:
-                z_parameter = getattr(self, self.unit_dict[ordinate[2]][3])                
+                z_parameter = getattr(self, self.unit_dict[ordinate[2]][3])
 
-            if use_julia is True:
-                DLD_delay_r = np.array(rounding_jl(parameter, delay_step))
-                DLD_energy_r = np.array(rounding_jl(DLD_energy, energy_step))
-            else:
-                DLD_delay_r = self.rounding(parameter, delay_step)
-                DLD_energy_r = self.rounding(DLD_energy, energy_step)
-                DLD_delay_r = np.around(DLD_delay_r,
-                                        self.decimal_n(delay_step))
-                DLD_energy_r = np.around(DLD_energy_r,
-                                         self.decimal_n(energy_step))
-
-            image_data_x = np.arange(DLD_energy_r.min(),
-                                     DLD_energy_r.max()+energy_step,
-                                     energy_step)
-            image_data_x = np.around(image_data_x,
-                                     self.decimal_n(energy_step))
-            image_data_y = np.arange(DLD_delay_r.min(),
-                                     DLD_delay_r.max()+delay_step,
-                                     delay_step)
-            image_data_y = np.around(image_data_y,
-                                     self.decimal_n(delay_step))
+            image_data_x = np.arange(
+                self.rounding(DLD_energy.min(), energy_step),
+                self.rounding(DLD_energy.max(), energy_step) + energy_step,
+                energy_step)
+            image_data_x = np.around(image_data_x, self.decimal_n(energy_step))
+            image_data_y = np.arange(
+                self.rounding(parameter.min(), delay_step),
+                self.rounding(parameter.max(), delay_step) + delay_step,
+                delay_step)
+            image_data_y = np.around(image_data_y, self.decimal_n(delay_step))
 
             if self.switch_3D is True:
                 if z_step >= 100:
@@ -2741,29 +2730,42 @@ class read_file_MM(create_batch_WESPE):
                 xedges = xedges-0.5*energy_step
                 if self.switch_3D is False:
                     image_data = make_hist(xedges, yedges,
-                                           DLD_energy_r, DLD_delay_r)
+                                           DLD_energy, parameter)
                     image_data = np.array(image_data).T
                 else:
                     zedges = np.append(image_data_z,
                                        image_data_z[-1]+z_step)
                     zedges = zedges-0.5*z_step
                     image_data = make_hist_3D(xedges, yedges, zedges,
-                                                 DLD_energy_r, DLD_delay_r,
+                                                 DLD_energy, parameter,
                                                  z_parameter)
                     image_data = np.array(image_data).transpose(1,0,2)
-                    # for i in range(image_data.shape[2]):
-                    #     plt.imshow(image_data[:,:,i])
-                    #     plt.show()
             else:
-                image_data = []
-                for i in image_data_y:
-                    array_1 = DLD_energy_r[np.where(DLD_delay_r == i)]
-                    line = []
-                    array_1 = array_1.astype('f')
-                    for j in image_data_x:
-                        array_2 = np.where(array_1 == j)[0]
-                        line.append(array_2.shape[0])
-                    image_data.append(line)
+                xedges = np.append(image_data_x, image_data_x[-1] + energy_step) - 0.5 * energy_step
+                yedges = np.append(image_data_y, image_data_y[-1] + delay_step)  - 0.5 * delay_step
+                energy_indices = np.floor((DLD_energy - xedges[0]) / energy_step).astype(int)
+                delay_indices  = np.floor((parameter  - yedges[0]) / delay_step ).astype(int)
+                if self.switch_3D is False:
+                    valid = ((energy_indices >= 0) & (energy_indices < len(image_data_x)) &
+                             (delay_indices  >= 0) & (delay_indices  < len(image_data_y)))
+                    flat_indices = delay_indices[valid] * len(image_data_x) + energy_indices[valid]
+                    image_data = np.bincount(flat_indices,
+                                             minlength=len(image_data_y) * len(image_data_x)
+                                             ).reshape(len(image_data_y), len(image_data_x)
+                                             ).astype(np.int32)
+                else:
+                    zedges = np.append(image_data_z, image_data_z[-1] + z_step) - 0.5 * z_step
+                    z_indices = np.floor((z_parameter - zedges[0]) / z_step).astype(int)
+                    valid = ((energy_indices >= 0) & (energy_indices < len(image_data_x)) &
+                             (delay_indices  >= 0) & (delay_indices  < len(image_data_y)) &
+                             (z_indices      >= 0) & (z_indices      < len(image_data_z)))
+                    flat_indices = (delay_indices[valid] * len(image_data_x) * len(image_data_z) +
+                                    energy_indices[valid] * len(image_data_z) +
+                                    z_indices[valid])
+                    image_data = np.bincount(flat_indices,
+                                             minlength=len(image_data_y) * len(image_data_x) * len(image_data_z)
+                                             ).reshape(len(image_data_y), len(image_data_x), len(image_data_z)
+                                             ).astype(np.int32)
 
             x_label = self.unit_dict[ordinate[0]][0]
             y_label = self.unit_dict[ordinate[1]][0]
@@ -2789,27 +2791,6 @@ class read_file_MM(create_batch_WESPE):
             except:
                 pass
 
-            # finding onset position
-            # y = np.abs(np.gradient(np.sum(image_data, axis=0)))
-            # mid = int(y.shape[0]/2)
-            # y = y[:mid]
-            # x_check = image_data_x_a[:mid][np.where(y>0.01*np.max(y))]
-            # plt.plot(image_data_x_a[np.where(y>0.01*np.max(y))],y[np.where(y>0.01*np.max(y))], 'o')
-            # plt.plot(image_data_x_a, np.abs(np.gradient(np.sum(image_data, axis=0))))
-            # plt.show()
-            # grad = np.gradient(x_check)
-            # photons = np.mean(x_check[x_check<=x_check[np.argmax(grad)]])
-            # photons = self.rounding(photons, energy_step)
-            # onset = np.min(x_check[x_check>x_check[np.argmax(grad)]])
-            # photons = np.around(photons, self.decimal_n(energy_step))
-            # onset = np.around(onset, self.decimal_n(energy_step))
-
-            #image_data_x_a = image_data_x_a - onset
-
-            # BE = self.mono_mean - np.array(image_data_x) - 4.5
-            # BE = np.around(self.rounding(BE, energy_step), self.decimal_n(energy_step))
-            # image_data_x_a = BE
-            
             if self.switch_3D is False:
                 coords = {x_label: ("Dim_x", image_data_x),
                           y_label: ("Dim_y", image_data_y)}
@@ -2901,7 +2882,7 @@ class read_file_MM(create_batch_WESPE):
             self.x_step = np.gradient(self.x_step)[0]
             self.en_calib = '-'
 
-            if save != 'off':  # and self.ordinate == 'delay':
+            if save != 'off':
                 self.Map_2D.to_netcdf(save_path, engine="scipy")
                 print('Delay-energy map saved as:')
                 print(save_path)
