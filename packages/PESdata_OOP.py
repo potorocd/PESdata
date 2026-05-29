@@ -2261,6 +2261,16 @@ class read_file_MM(create_batch_WESPE):
                           'mono': ['Mono', 'Alt Mono',
                                    'eV', 'mono']
                           }
+        
+        try:
+            with open('config.json', 'r') as json_file:
+                config = json.load(json_file)
+        except FileNotFoundError:
+            with open('packages/config.json', 'r') as json_file:
+                config = json.load(json_file)
+        config = json.dumps(config)
+        config = json.loads(config,
+                            object_hook=lambda d: SimpleNamespace(**d))
 
         self.file_full = file_full
         self.run_num = self.file_full.split(os.sep)[-1]
@@ -2281,11 +2291,13 @@ class read_file_MM(create_batch_WESPE):
             f = f.rename(columns={"dldTime": "dldTimeSteps"})
         except:
             pass
+        
+        # print(f.keys())
 
         try:
             subset = []
             for i in ['trainId', 'pulseId', 'dldPosX', 'dldPosY', 'x', 'y',
-                      'dldTimeSteps', 'delayStage']:
+                      'dldTimeSteps', 'delayStage', 'bam', 'lam']:
                 if i in f.keys():
                     subset.append(i)
             f = f.dropna(subset=subset, how='any')
@@ -2326,6 +2338,10 @@ class read_file_MM(create_batch_WESPE):
         except:
             self.BAM = 0
         try:
+            self.LAM = f['lam'].values
+        except:
+            self.LAM = 0
+        try:
             self.GMD = f['gmdBda'].values
         except:
             self.GMD = 0
@@ -2359,8 +2375,12 @@ class read_file_MM(create_batch_WESPE):
                 self.PE = 0
         if self.is_static is False:
             try:
-                if config.BAM_cor == 'on':
-                    self.DLD_delay = f['delayStage'].values
+                if config.BAM_cor.lower() == 'bam':
+                    self.DLD_delay = f['delayStage'].values - f['bam'].values/1000
+                    print(f'***BAM correction for the delay stage values was applied ({-np.mean(f["bam"])/1000:.3f} ps average)***')
+                elif config.BAM_cor.lower() == 'lam':
+                    self.DLD_delay = f['delayStage'].values - f['lam'].values/1000
+                    print(f'***LAM correction for the delay stage values was applied ({-np.mean(f["lam"])/1000:.3f} ps average)***')
                 else:
                     self.DLD_delay = f['delayStage'].values
             except:
@@ -2667,7 +2687,7 @@ class read_file_MM(create_batch_WESPE):
                 median = np.median(i)
                 mad = np.median(np.abs(i - median))
                 std = 1.4826 * mad
-                print(median, std)
+                # print(median, std)
                 min_list = np.where(i < median - 3*std)
                 if j == 'DLD_energy' and self.mono_mean > 100:
                     max_list = np.where(i > self.mono_mean + 50)
